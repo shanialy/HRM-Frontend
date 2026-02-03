@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
+import { useRouter } from "next/navigation";
 
 export default function AttendancePage() {
+  const router = useRouter();
+
   const [selectedDate, setSelectedDate] = useState("");
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
@@ -105,10 +108,29 @@ export default function AttendancePage() {
       <div className="flex-1 flex flex-col">
         {/* APP BAR */}
         <div className="relative h-14 flex items-center px-6 bg-gray-900/80 backdrop-blur-md border-b border-white/10 shadow-md">
+
+          {/* Center Title */}
           <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold tracking-wide">
-            Attendance Dashboard
+            Attendance
           </h1>
+
+          {/* Right Button */}
+
+          <div className="ml-auto">
+            <button
+              onClick={() =>
+                router.push(
+                  `/dashboard/admin-dashboard/employees-attendence/employee-view-attendance`
+                )
+              }
+              className="px-4 py-2 text-sm rounded-lg bg-[#EE2737] hover:bg-[#d81f2e] transition"
+            >
+              View Attendance
+            </button>
+          </div>
+
         </div>
+
 
         {/* PAGE CONTENT */}
         <main className="flex-1 flex items-center justify-center p-6">
@@ -179,12 +201,12 @@ export default function AttendancePage() {
               </div>
 
               {/* RESET */}
-              <button
+              {/* <button
                 onClick={resetAttendance}
                 className="w-full py-2 rounded-xl bg-gray-600 hover:bg-gray-700 font-semibold shadow-lg transition"
               >
                 Reset
-              </button>
+              </button> */}
             </div>
           </div>
         </main>

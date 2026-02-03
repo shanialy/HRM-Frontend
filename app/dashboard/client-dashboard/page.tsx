@@ -13,18 +13,30 @@ export default function DashboardPage() {
             <Sidebar />
 
             <div className="flex-1 flex flex-col">
-                {/* APP BAR */}
-                <div className="relative h-14 flex items-center px-6
-                        bg-gray-900/80 backdrop-blur-md
-                        border-b border-white/10 shadow-md">
+                {/* App Bar */}
+                <div className="h-14 flex items-center px-6
+      bg-gray-900/80 backdrop-blur-md
+      border-b border-white/10 shadow-md">
 
+                    {/* LEFT SPACER */}
+                    <div className="w-20" />
 
                     {/* CENTER TITLE */}
-                    <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold tracking-wide">
-                        Dashboard
+                    <h1 className="flex-1 text-center text-lg font-semibold tracking-wide">
+                        Client Dashboard
                     </h1>
 
-
+                    {/* RIGHT PROFILE IMAGE */}
+                    <div className="w-20 flex justify-end">
+                        <img
+                            src="/profile.jpg"
+                            alt="Profile"
+                            onClick={() => router.push("/dashboard/my-profile")}
+                            className="w-9 h-9 rounded-full object-cover
+                     cursor-pointer border border-white/20
+                     hover:scale-105 transition"
+                        />
+                    </div>
                 </div>
 
                 {/* MAIN CONTENT */}

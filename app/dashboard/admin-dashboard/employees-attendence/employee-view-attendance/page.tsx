@@ -4,7 +4,11 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import Image from "next/image";
 import { useState } from "react";
 
-const months = ["January", "February", "March"];
+const months = [
+    "January", "February", "March", "April",
+    "May", "June", "July", "August",
+    "September", "October", "November", "December",
+];
 
 export default function EmployeeAttendanceDetail() {
     const [month, setMonth] = useState("January");
@@ -48,26 +52,42 @@ export default function EmployeeAttendanceDetail() {
                 </div>
 
                 {/* MONTH FILTER */}
-                <div className="flex gap-3 mb-5">
-                    <select
-                        value={month}
-                        onChange={(e) => setMonth(e.target.value)}
-                        className="bg-gray-800 border border-white/10 px-3 py-2 rounded"
-                    >
-                        {months.map((m) => (
-                            <option key={m}>{m}</option>
-                        ))}
-                    </select>
+                <div className="flex flex-wrap items-center gap-4 mb-6">
 
-                    <select
-                        value={year}
-                        onChange={(e) => setYear(+e.target.value)}
-                        className="bg-gray-800 border border-white/10 px-3 py-2 rounded"
-                    >
-                        <option>2025</option>
-                        <option>2026</option>
-                    </select>
+                    {/* Month */}
+                    <div className="flex flex-col">
+                        <label className="text-xs text-gray-400 mb-1">Month</label>
+                        <select
+                            value={month}
+                            onChange={(e) => setMonth(e.target.value)}
+                            className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                            {months.map((m) => (
+                                <option key={m} value={m}>
+                                    {m}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Year */}
+                    <div className="flex flex-col">
+                        <label className="text-xs text-gray-400 mb-1">Year</label>
+                        <select
+                            value={year}
+                            onChange={(e) => setYear(Number(e.target.value))}
+                            className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                            {[2024, 2025, 2026, 2027].map((y) => (
+                                <option key={y} value={y}>
+                                    {y}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                 </div>
+
 
                 {/* SUMMARY */}
                 <div className="grid grid-cols-3 gap-4 mb-6">
