@@ -2,7 +2,8 @@
 
 import Sidebar from "@/app/components/layout/Sidebar";
 import Button from "@/app/components/ui/Button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getRequest } from "@/app/services/api";
 
 type Profile = {
   fullname: string;
@@ -15,21 +16,76 @@ type Profile = {
   image: string;
 };
 
-export default function MyProfilePage() {
-  const [open, setOpen] = useState(false);
+// API response type
+type GetProfileResponse = {
+  status: number;
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: string;
+      salary: number;
+      userType: string;
+      targetAmount?: number;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
+};
 
+export default function MyProfilePage() {
   const [profile, setProfile] = useState<Profile>({
-    fullname: "John Doe",
-    email: "john.doe@example.com",
-    phone: "1098162",
-    address: "US",
-    department: "Production",
-    designation: "Employee",
-    salary: "40000",
+    fullname: "",
+    email: "",
+    phone: "",
+    address: "",
+    department: "",
+    designation: "",
+    salary: "0",
     image: "https://randomuser.me/api/portraits/men/32.jpg",
   });
 
   const [form, setForm] = useState<Profile>(profile);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const res = await getRequest<GetProfileResponse>(
+          "/authorization/get-profile",
+        );
+        const user = res.data?.user; // ✅ Now TypeScript knows `user`
+
+        const mappedProfile: Profile = {
+          fullname: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+          email: user.email ?? "",
+          phone: "", // Add if API has phone
+          address: "", // Add if API has address
+          department: "", // Add if API has department
+          designation: user.role ?? "",
+          salary: user.salary?.toString() ?? "0",
+          image: "https://randomuser.me/api/portraits/men/32.jpg",
+        };
+
+        setProfile(mappedProfile);
+        setForm(mappedProfile);
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  if (loading) return <div className="text-white p-6">Loading...</div>;
 
   const handleUpdate = () => {
     setProfile(form);
@@ -184,12 +240,6 @@ export default function MyProfilePage() {
               >
                 Update Profile
               </Button>
-              {/* <button
-                  onClick={handleUpdate}
-                  className="bg- px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  Update
-                </button> */}
             </div>
           </div>
         </div>

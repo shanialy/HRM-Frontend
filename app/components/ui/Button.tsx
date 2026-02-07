@@ -17,10 +17,10 @@ export default function Button({
   const baseStyles = `
     inline-block px-6 py-3
     bg-[#EE2737] text-white
+    hover:bg-[#d81f2e]
     font-semibold
     rounded-[20px]
     shadow-lg
-    hover:bg-[#d81f2e]
     transition-all duration-300 cursor-pointer
     ${className}
   `;
