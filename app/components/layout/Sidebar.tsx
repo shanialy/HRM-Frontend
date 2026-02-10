@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -11,6 +12,7 @@ import {
   ClipboardCheck,
   LogOut,
 } from "lucide-react";
+import { logout } from "@/app/dashboard/redux/slices/authSlice";
 
 /* ================= TYPES ================= */
 type Role = "admin" | "employee" | "client" | null;
@@ -19,7 +21,7 @@ type Role = "admin" | "employee" | "client" | null;
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-
+  const dispatch = useDispatch();
   // ✅ Lazy initialization (NO useEffect → NO warning)
   const [role] = useState<Role>(() => {
     if (typeof window === "undefined") return null;
@@ -31,11 +33,10 @@ export default function Sidebar() {
   /* ================= HELPERS ================= */
   const linkClass = (href: string) =>
     `flex items-center gap-3 px-4 py-2 rounded-lg transition
-     ${
-       pathname === href
-         ? "bg-[#EE2737] text-white"
-         : "text-gray-300 hover:bg-white/10 hover:text-white"
-     }`;
+     ${pathname === href
+      ? "bg-[#EE2737] text-white"
+      : "text-gray-300 hover:bg-white/10 hover:text-white"
+    }`;
 
   /* ================= UI ================= */
   return (
@@ -178,17 +179,27 @@ export default function Sidebar() {
       <div className="mt-auto">
         <button
           onClick={() => {
+            // ✅ Redux clear
+            dispatch(logout());
+
+            // ✅ localStorage clear (token + user + role)
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            localStorage.removeItem("role");
+
+            // ✅ redirect to login
             localStorage.clear();
             router.push("/auth/login");
           }}
           className="w-full flex items-center justify-center gap-3
-                     px-4 py-3 bg-[#EE2737] hover:bg-[#d81f2e]
-                     rounded-xl font-semibold transition cursor-pointer"
+               px-4 py-3 bg-[#EE2737] hover:bg-[#d81f2e]
+               rounded-xl font-semibold transition cursor-pointer"
         >
           <LogOut size={18} />
           Logout
         </button>
       </div>
+
     </aside>
   );
 }

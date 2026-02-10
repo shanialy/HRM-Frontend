@@ -92,9 +92,17 @@ export default function EmployeesListPage() {
   const fetchEmployees = async (page = 1) => {
     try {
       setLoading(true);
+
+      // ✅ Log token before API call
+      const token = localStorage.getItem("token");
+      console.log("Token before GET employees:", token);
+
       const res = await getRequest<EmployeesApiResponse>(
         `employee/getAllEmployees?page=${page}&limit=${PAGE_SIZE}`,
       );
+
+      console.log("Employees API response:", res.data);
+
       setEmployees(res.data.data.employees);
       setTotalPages(res.data.data.pagination.totalPages);
     } catch (err) {
@@ -104,7 +112,10 @@ export default function EmployeesListPage() {
     }
   };
 
+
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return; // skip fetch if not logged in
     fetchEmployees(page);
   }, [page]);
 

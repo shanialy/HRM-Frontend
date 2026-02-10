@@ -107,11 +107,13 @@ import { useState } from "react";
 import Button from "@/app/components/ui/Button";
 import { loginUser } from "@/app/services/auth.services";
 import { normalizeRole } from "@/app/utills/normalizeRole";
+import { setCredentials } from "@/app/dashboard/redux/slices/authSlice";
 
+import { useDispatch } from "react-redux";
 
 export default function LoginPage() {
   const router = useRouter();
-
+  const dispatch = useDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,29 +126,31 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-
       const response = await loginUser({ email, password });
 
-      const { token, user } = response.data;
+      // ✅ EXACT ACCESS
+      const { token, user } = response.data.data;
 
-      // ✅ role normalize
+      // role normalize (ADMIN → admin)
       const role = normalizeRole(user.role);
 
-      // ✅ save to localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", role);
-      localStorage.setItem("user", JSON.stringify(user));
+      // redux
+      dispatch(setCredentials({ token, user }));
 
-      // ✅ redirect
+      // localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("role", role);
+
+      // redirect
       if (role === "admin") {
         router.push("/dashboard/admin-dashboard");
       } else if (role === "employee") {
         router.push("/dashboard/employe-dashboard");
       } else if (role === "client") {
         router.push("/dashboard/client-dashboard");
-      } else {
-        alert("Unknown role");
       }
+
     } catch (error: any) {
       console.error(error);
       alert(error?.response?.data?.message || "Login failed");

@@ -1,8 +1,4 @@
-import axios, {
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse,
-} from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 const api: AxiosInstance = axios.create({
   baseURL: "http://3.84.184.87:8000/api/v1",
@@ -11,12 +7,12 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-// ✅ TOKEN INTERCEPTOR (DYNAMIC)
+/* ================= TOKEN INTERCEPTOR ================= */
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("token");
-
+      console.log("[API] Token:", token); // check token
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -26,7 +22,8 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* ================= REQUEST FUNCTIONS ================= */
+
+/* ================= REQUEST HELPERS ================= */
 
 export const getRequest = <T>(
   url: string,
@@ -42,16 +39,14 @@ export const postRequest = <T, D = unknown>(
 export const putRequest = <T, D = unknown>(
   url: string,
   data?: D,
-  config?: AxiosRequestConfig,
-): Promise<AxiosResponse<T>> => {
-  return api.put<T>(url, data, config);
-};
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> =>
+  api.put<T>(url, data, config);
 
 export const deleteRequest = <T>(
   url: string,
-  config?: AxiosRequestConfig,
-): Promise<AxiosResponse<T>> => {
-  return api.delete<T>(url, config);
-};
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> =>
+  api.delete<T>(url, config);
 
 export default api;
