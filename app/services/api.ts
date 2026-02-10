@@ -1,38 +1,43 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+} from "axios";
 
 const api: AxiosInstance = axios.create({
-  baseURL: "https://qngh2bv1-8000.asse.devtunnels.ms/api/v1/",
+  baseURL: "http://3.84.184.87:8000/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+// ✅ TOKEN INTERCEPTOR (DYNAMIC)
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
-      // Example: set a fixed token
-      config.headers.Authorization = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwiaWQiOiI2OTgwZWZkNTMwNzc5ZGZjZTIzOTE0NjMiLCJyb2xlIjoiQURNSU4iLCJkZXBhcnRtZW50IjoidW5kZWZpbmVkIiwiaWF0IjoxNzcwNDExNjgxLCJleHAiOjE3NzEwMTY0ODF9.pvKLAe3NjvWnEMeVzhMR_c3iogYpK_dVxTdyNifNqn4`;
+      const token = localStorage.getItem("token");
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
 /* ================= REQUEST FUNCTIONS ================= */
+
 export const getRequest = <T>(
   url: string,
-  config?: AxiosRequestConfig,
-): Promise<AxiosResponse<T>> => {
-  return api.get<T>(url, config);
-};
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> => api.get<T>(url, config);
 
 export const postRequest = <T, D = unknown>(
   url: string,
   data?: D,
-  config?: AxiosRequestConfig,
-): Promise<AxiosResponse<T>> => {
-  return api.post<T>(url, data, config);
-};
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> => api.post<T>(url, data, config);
 
 export const putRequest = <T, D = unknown>(
   url: string,

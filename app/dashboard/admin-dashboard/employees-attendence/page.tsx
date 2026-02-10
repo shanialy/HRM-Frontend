@@ -210,7 +210,6 @@ export default function AttendancePage() {
                                 {i + 1}
                             </button>
                         ))}
-
                         <button
                             onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
                             className="px-3 py-1 bg-gray-800 rounded"

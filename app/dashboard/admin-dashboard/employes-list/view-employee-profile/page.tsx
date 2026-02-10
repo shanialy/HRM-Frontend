@@ -29,20 +29,22 @@ type Client = {
 export default function EmployeeDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const employeeId = params.id;
+
+  // ✅ FIX 1: safe param read
+  const employeeId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // 🔹 Dummy clients for sales employees
+  // 🔹 Dummy clients (unchanged)
   const clients: Client[] = [
     { id: 1, name: "Acme Corp", email: "acme@gmail.com" },
     { id: 2, name: "Globex", email: "globex@gmail.com" },
     { id: 3, name: "Initech", email: "initech@gmail.com" },
   ];
 
-  // 🔹 Filter clients (hook must be unconditionally called)
+  // 🔹 Filter clients (unchanged)
   const filteredClients = useMemo(() => {
     return clients.filter(
       (c) =>
@@ -56,10 +58,13 @@ export default function EmployeeDetailPage() {
 
     const fetchEmployee = async () => {
       try {
-        const res = await getRequest<{ employee: Employee }>(
-          `/employee/getEmployee/${employeeId}`,
-        );
-        setEmployee(res.data.employee);
+        // ✅ FIX 2: correct API response structure
+        const res = await getRequest<{
+          success: boolean;
+          data: { employee: Employee };
+        }>(`/employee/getEmployee/${employeeId}`);
+
+        setEmployee(res.data.data.employee);
       } catch (err) {
         console.error("Failed to fetch employee", err);
       } finally {
@@ -134,7 +139,9 @@ export default function EmployeeDetailPage() {
                 {filteredClients.map((client) => (
                   <div
                     key={client.id}
-                    onClick={() => router.push("/dashboard/conversation-list")}
+                    onClick={() =>
+                      router.push("/dashboard/conversation-list")
+                    }
                     className="p-4 rounded-lg bg-gray-800/70 border border-white/10 hover:bg-gray-700 cursor-pointer"
                   >
                     <p className="font-medium">{client.name}</p>
