@@ -28,45 +28,43 @@ type Client = {
 
 export default function EmployeeDetailPage() {
   const router = useRouter();
-  const params = useParams();
 
-  // ✅ FIX 1: safe param read
-  const employeeId = Array.isArray(params.id) ? params.id[0] : params.id;
+  // ✅ Proper typed params
+  const params = useParams<{ id: string }>();
+  const employeeId = params?.id;
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // 🔹 Dummy clients (unchanged)
   const clients: Client[] = [
     { id: 1, name: "Acme Corp", email: "acme@gmail.com" },
     { id: 2, name: "Globex", email: "globex@gmail.com" },
     { id: 3, name: "Initech", email: "initech@gmail.com" },
   ];
 
-  // 🔹 Filter clients (unchanged)
   const filteredClients = useMemo(() => {
     return clients.filter(
       (c) =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email.toLowerCase().includes(search.toLowerCase()),
+        c.email.toLowerCase().includes(search.toLowerCase())
     );
-  }, [clients, search]);
+  }, [search]);
 
   useEffect(() => {
     if (!employeeId) return;
 
     const fetchEmployee = async () => {
       try {
-        // ✅ FIX 2: correct API response structure
+        setLoading(true);
+
         const res = await getRequest<{
           success: boolean;
           data: { employee: Employee };
         }>(`/employee/getEmployee/${employeeId}`);
-
         setEmployee(res.data.data.employee);
-      } catch (err) {
-        console.error("Failed to fetch employee", err);
+      } catch (err: any) {
+        console.error("Failed to fetch employee:", err?.response || err);
       } finally {
         setLoading(false);
       }
@@ -75,20 +73,28 @@ export default function EmployeeDetailPage() {
     fetchEmployee();
   }, [employeeId]);
 
-  if (loading) return <div>Loading...</div>;
-  if (!employee) return <div>Employee not found</div>;
+  if (loading)
+    return (
+      <div className="flex min-h-screen items-center justify-center text-white">
+        Loading...
+      </div>
+    );
+
+  if (!employee)
+    return (
+      <div className="flex min-h-screen items-center justify-center text-white">
+        Employee not found
+      </div>
+    );
 
   const fullName = `${employee.firstName} ${employee.lastName}`.trim();
-  const isSales =
-    /sales/i.test(employee.designation || "") ||
-    /sales/i.test(employee.department || "");
-
+  const department = employee?.department?.toLowerCase() || "";
+  const isSales = department.includes("sales");
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
-        {/* HEADER */}
         <header className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
           <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
             Employee Profile
@@ -97,7 +103,6 @@ export default function EmployeeDetailPage() {
 
         {isSales ? (
           <main className="flex-1 p-6 flex gap-6">
-            {/* PROFILE CARD */}
             <div className="w-full max-w-sm bg-gray-900/70 border border-white/10 rounded-xl p-6">
               <div className="flex flex-col items-center text-center">
                 <img
@@ -123,7 +128,6 @@ export default function EmployeeDetailPage() {
               </div>
             </div>
 
-            {/* CLIENTS SECTION */}
             <div className="flex-1 bg-gray-900/70 border border-white/10 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Clients</h2>

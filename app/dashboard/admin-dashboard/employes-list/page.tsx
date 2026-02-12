@@ -98,7 +98,8 @@ export default function EmployeesListPage() {
       console.log("Token before GET employees:", token);
 
       const res = await getRequest<EmployeesApiResponse>(
-        `employee/getAllEmployees?page=${page}&limit=${PAGE_SIZE}`,
+        `employee/getAllEmployees`,
+        // `employee/getAllEmployees?page=${page}&limit=${PAGE_SIZE}`,
       );
 
       console.log("Employees API response:", res.data);
@@ -201,7 +202,7 @@ export default function EmployeesListPage() {
                       className="border-t border-white/10 hover:bg-white/5 cursor-pointer"
                       onClick={() =>
                         router.push(
-                          `/dashboard/admin-dashboard/employes-list/view-employee-profile/${emp._id}`,
+                          `/dashboard/admin-dashboard/employes-list/view-employee-profile/${emp._id}`
                         )
                       }
                     >

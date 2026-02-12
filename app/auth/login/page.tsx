@@ -140,6 +140,7 @@ export default function LoginPage() {
       // localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
+
       localStorage.setItem("role", role);
 
       // redirect
