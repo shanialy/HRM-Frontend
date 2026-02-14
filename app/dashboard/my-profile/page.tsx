@@ -1,7 +1,6 @@
 "use client";
 
 import Sidebar from "@/app/components/layout/Sidebar";
-import Button from "@/app/components/ui/Button";
 import { useState, useEffect } from "react";
 import { getRequest } from "@/app/services/api";
 
@@ -16,7 +15,7 @@ type Profile = {
   image: string;
 };
 
-// API response type
+// Correct API response type
 type GetProfileResponse = {
   status: number;
   success: boolean;
@@ -29,10 +28,10 @@ type GetProfileResponse = {
       email: string;
       role: string;
       salary: number;
-      userType: string;
+      userType?: string;
       targetAmount?: number;
-      createdAt: string;
-      updatedAt: string;
+      createdAt?: string;
+      updatedAt?: string;
     };
   };
 };
@@ -58,18 +57,18 @@ export default function MyProfilePage() {
       try {
         setLoading(true);
         const res = await getRequest<GetProfileResponse>(
-          "/authorization/get-profile",
+          "authorization/get-profile",
         );
-        const user = res.data?.user; // ✅ Now TypeScript knows `user`
+        const user = res.data.data.user;
 
         const mappedProfile: Profile = {
-          fullname: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
-          email: user.email ?? "",
-          phone: "", // Add if API has phone
-          address: "", // Add if API has address
-          department: "", // Add if API has department
-          designation: user.role ?? "",
-          salary: user.salary?.toString() ?? "0",
+          fullname: `${user.firstName} ${user.lastName}`.trim(),
+          email: user.email,
+          phone: "", // API doesn't have phone
+          address: "", // API doesn't have address
+          department: "", // API doesn't have department
+          designation: user.role,
+          salary: user.salary.toString(),
           image: "https://randomuser.me/api/portraits/men/32.jpg",
         };
 
@@ -114,7 +113,7 @@ export default function MyProfilePage() {
                 setForm(profile);
                 setOpen(true);
               }}
-              className=" bg-[#EE2737] px-4 py-2 rounded hover:bg-gray-700"
+              className="bg-[#EE2737] px-4 py-2 rounded hover:bg-gray-700"
             >
               Update
             </button>
@@ -234,12 +233,12 @@ export default function MyProfilePage() {
               >
                 Cancel
               </button>
-              <Button
+              <button
                 onClick={handleUpdate}
-                className="w-full py-2 rounded-lg font-semibold"
+                className="px-4 py-2 rounded bg-[#EE2737] hover:bg-red-600"
               >
                 Update Profile
-              </Button>
+              </button>
             </div>
           </div>
         </div>

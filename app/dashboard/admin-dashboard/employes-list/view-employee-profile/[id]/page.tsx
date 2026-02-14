@@ -1,9 +1,10 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
 import { getRequest } from "@/app/services/api";
+import { AxiosError } from "axios";
 
 type Employee = {
   _id: string;
@@ -20,16 +21,9 @@ type Employee = {
   image?: string;
 };
 
-type Client = {
-  id: number;
-  name: string;
-  email: string;
-};
+type Client = { id: number; name: string; email: string };
 
 export default function EmployeeDetailPage() {
-  const router = useRouter();
-
-  // ✅ Proper typed params
   const params = useParams<{ id: string }>();
   const employeeId = params?.id;
 
@@ -37,39 +31,44 @@ export default function EmployeeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Dummy clients for sales employees
   const clients: Client[] = [
     { id: 1, name: "Acme Corp", email: "acme@gmail.com" },
     { id: 2, name: "Globex", email: "globex@gmail.com" },
     { id: 3, name: "Initech", email: "initech@gmail.com" },
   ];
 
-  const filteredClients = useMemo(() => {
-    return clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [search]);
+  const filteredClients = useMemo(
+    () =>
+      clients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(search.toLowerCase()) ||
+          c.email.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [search],
+  );
+
+  // Fetch employee by ID
+  const fetchEmployee = async () => {
+    if (!employeeId) return;
+    try {
+      setLoading(true);
+      const res = await getRequest<{
+        success: boolean;
+        data: { employee: Employee };
+      }>(`employee/employees/${employeeId}`);
+      setEmployee(res.data.data.employee);
+    } catch (err: unknown) {
+      if (err instanceof AxiosError)
+        console.error(err.response?.data || err.message);
+      else if (err instanceof Error) console.error(err.message);
+      else console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!employeeId) return;
-
-    const fetchEmployee = async () => {
-      try {
-        setLoading(true);
-
-        const res = await getRequest<{
-          success: boolean;
-          data: { employee: Employee };
-        }>(`/employee/getEmployee/${employeeId}`);
-        setEmployee(res.data.data.employee);
-      } catch (err: any) {
-        console.error("Failed to fetch employee:", err?.response || err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEmployee();
   }, [employeeId]);
 
@@ -79,7 +78,6 @@ export default function EmployeeDetailPage() {
         Loading...
       </div>
     );
-
   if (!employee)
     return (
       <div className="flex min-h-screen items-center justify-center text-white">
@@ -88,12 +86,11 @@ export default function EmployeeDetailPage() {
     );
 
   const fullName = `${employee.firstName} ${employee.lastName}`.trim();
-  const department = employee?.department?.toLowerCase() || "";
-  const isSales = department.includes("sales");
+  const isSales = employee.department?.toLowerCase().includes("sales");
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
-
       <div className="flex-1 flex flex-col">
         <header className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
           <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
@@ -103,6 +100,7 @@ export default function EmployeeDetailPage() {
 
         {isSales ? (
           <main className="flex-1 p-6 flex gap-6">
+            {/* Employee Info */}
             <div className="w-full max-w-sm bg-gray-900/70 border border-white/10 rounded-xl p-6">
               <div className="flex flex-col items-center text-center">
                 <img
@@ -119,7 +117,6 @@ export default function EmployeeDetailPage() {
                   {employee.designation}
                 </span>
               </div>
-
               <div className="mt-6 space-y-2 text-sm text-gray-300">
                 <p>📞 Phone: {employee.phone || "Not provided"}</p>
                 <p>📍 Address: {employee.address || "Not provided"}</p>
@@ -128,6 +125,7 @@ export default function EmployeeDetailPage() {
               </div>
             </div>
 
+            {/* Clients Section */}
             <div className="flex-1 bg-gray-900/70 border border-white/10 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Clients</h2>
@@ -138,14 +136,10 @@ export default function EmployeeDetailPage() {
                   className="px-3 py-2 rounded bg-gray-800 border border-white/10"
                 />
               </div>
-
               <div className="space-y-3">
                 {filteredClients.map((client) => (
                   <div
                     key={client.id}
-                    onClick={() =>
-                      router.push("/dashboard/conversation-list")
-                    }
                     className="p-4 rounded-lg bg-gray-800/70 border border-white/10 hover:bg-gray-700 cursor-pointer"
                   >
                     <p className="font-medium">{client.name}</p>
@@ -173,7 +167,6 @@ export default function EmployeeDetailPage() {
                   {employee.designation}
                 </span>
               </div>
-
               <div className="mt-6 space-y-2 text-sm text-gray-300">
                 <p>📞 Phone: {employee.phone || "Not provided"}</p>
                 <p>📍 Address: {employee.address || "Not provided"}</p>

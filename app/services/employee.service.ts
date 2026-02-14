@@ -1,4 +1,4 @@
-import { postRequest } from "@/app/services/api";
+import { postRequest } from "./api";
 
 export const createEmployee = (data: {
   firstName: string;
