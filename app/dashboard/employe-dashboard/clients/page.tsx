@@ -2,110 +2,143 @@
 
 import Sidebar from "@/app/components/layout/Sidebar";
 import Button from "@/app/components/ui/Button";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  getRequest,
+  postRequest,
+  putRequest,
+  deleteRequest,
+} from "@/app/services/api";
 
 type Client = {
-  id: number;
-  name: string;
+  _id: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  city: string;
+  address: string;
+  phone: string;
+  status?: string;
+  createdAt?: string;
 };
 
 const PAGE_SIZE = 5;
 
 export default function ClientsListPage() {
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: 1,
-      name: "James Wilson",
-      email: "james.wilson@client.co.uk",
-      city: "London",
-    },
-    {
-      id: 2,
-      name: "Oliver Brown",
-      email: "oliver.brown@client.co.uk",
-      city: "Manchester",
-    },
-    {
-      id: 3,
-      name: "Emily Clarke",
-      email: "emily.clarke@client.co.uk",
-      city: "Birmingham",
-    },
-    {
-      id: 4,
-      name: "Sophia Taylor",
-      email: "sophia.taylor@client.co.uk",
-      city: "Leeds",
-    },
-    {
-      id: 5,
-      name: "Harry Thompson",
-      email: "harry.thompson@client.co.uk",
-      city: "Liverpool",
-    },
-    {
-      id: 6,
-      name: "Olivia Evans",
-      email: "olivia.evans@client.co.uk",
-      city: "Glasgow",
-    },
-    {
-      id: 7,
-      name: "William Johnson",
-      email: "william.johnson@client.co.uk",
-      city: "Edinburgh",
-    },
-  ]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", city: "" });
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    address: "",
+    phone: "",
+  });
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
+  // ================= FETCH CLIENTS =================
+  const fetchClients = async (pageNumber = 1) => {
+    try {
+      setLoading(true);
+
+      const res = await getRequest<{
+        data: {
+          clients: Client[];
+          pagination: { totalPages: number };
+        };
+      }>(`client/myclients?page=${pageNumber}&limit=${PAGE_SIZE}`);
+
+      setClients(res.data.data.clients || []);
+      setTotalPages(res.data.data.pagination?.totalPages || 1);
+    } catch (error) {
+      console.error("Fetch Clients Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients(page);
+  }, [page]);
+
+  // ================= FILTER =================
   const filteredClients = useMemo(() => {
-    return clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email.toLowerCase().includes(search.toLowerCase()) ||
-        c.city.toLowerCase().includes(search.toLowerCase()),
+    if (!search) return clients;
+
+    return clients.filter((c) =>
+      `${c.firstName} ${c.lastName} ${c.email} ${c.address}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
     );
   }, [clients, search]);
 
-  const totalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
-
-  const paginatedClients = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredClients.slice(start, start + PAGE_SIZE);
-  }, [filteredClients, page]);
-
-  const handleSave = () => {
-    if (!form.name || !form.email || !form.city) return;
-
-    if (editId !== null) {
-      setClients((prev) =>
-        prev.map((c) => (c.id === editId ? { ...c, ...form } : c)),
-      );
-    } else {
-      setClients((prev) => [...prev, { id: Date.now(), ...form }]);
+  // ================= SAVE CLIENT =================
+  const handleSave = async () => {
+    if (
+      !form.firstName ||
+      !form.lastName ||
+      !form.email ||
+      !form.address ||
+      !form.phone
+    ) {
+      alert("All fields are required");
+      return;
     }
 
-    setForm({ name: "", email: "", city: "" });
-    setEditId(null);
-    setOpen(false);
+    try {
+      if (editId) {
+        await putRequest(`client/update-clients/${editId}`, form);
+      } else {
+        await postRequest("client/create-client", form);
+      }
+
+      await fetchClients(page);
+
+      setForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        address: "",
+        phone: "",
+      });
+
+      setEditId(null);
+      setOpen(false);
+    } catch (error) {
+      console.error("Save Client Error:", error);
+    }
   };
 
+  // ================= DELETE CLIENT =================
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this client?")) return;
+
+    try {
+      await deleteRequest(`client/deleteClient/${id}`);
+      await fetchClients(page);
+    } catch (error) {
+      console.error("Delete Client Error:", error);
+    }
+  };
+
+  // ================= EDIT =================
   const handleEdit = (c: Client) => {
-    setForm({ name: c.name, email: c.email, city: c.city });
-    setEditId(c.id);
-    setOpen(true);
-  };
+    setForm({
+      firstName: c.firstName,
+      lastName: c.lastName,
+      email: c.email,
+      address: c.address,
+      phone: c.phone,
+    });
 
-  const handleDelete = (id: number) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+    setEditId(c._id);
+    setOpen(true);
   };
 
   return (
@@ -114,15 +147,8 @@ export default function ClientsListPage() {
 
       <div className="flex-1 flex flex-col">
         {/* APP BAR */}
-        <div
-          className="relative h-14 flex items-center px-6
-                    bg-gray-900/80 backdrop-blur-md
-                    border-b border-white/10 shadow-md"
-        >
-          <h1
-            className="absolute left-1/2 -translate-x-1/2
-                        text-lg font-semibold tracking-wide"
-          >
+        <div className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
             Clients
           </h1>
 
@@ -134,174 +160,154 @@ export default function ClientsListPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-2 rounded-lg text-sm
-                            bg-gray-800 border border-white/10
-                            focus:outline-none"
+              className="px-3 py-2 rounded bg-gray-800 border border-white/10"
             />
+
             <Button
               onClick={() => {
-                setForm({ name: "", email: "", city: "" });
+                setForm({
+                  firstName: "",
+                  lastName: "",
+                  email: "",
+                  address: "",
+                  phone: "",
+                });
                 setEditId(null);
                 setOpen(true);
               }}
-              className="w-full py-2 rounded-lg font-semibold"
             >
               + Add Client
             </Button>
-            {/* <button
-              onClick={() => {
-                setForm({ name: "", email: "", city: "" });
-                setEditId(null);
-                setOpen(true);
-              }}
-              className="bg-gray-800 hover:bg-gray-700
-                            border border-white/10
-                            px-4 py-2 rounded-lg text-sm transition"
-            >
-              + Add Client
-            </button> */}
           </div>
         </div>
 
         {/* TABLE */}
         <main className="flex-1 p-6">
-          <div
-            className="overflow-x-auto
-                        bg-gray-900/70 backdrop-blur-lg
-                        rounded-xl shadow-2xl
-                        border border-white/10"
-          >
-            <table className="w-full text-sm">
-              <thead className="bg-gray-800/80 text-gray-300">
-                <tr>
-                  <th className="px-5 py-4 text-left">Name</th>
-                  <th className="px-5 py-4 text-left">Email</th>
-                  <th className="px-5 py-4 text-left">City</th>
-                  <th className="px-5 py-4 text-left">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginatedClients.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-t border-white/10
-                                        hover:bg-white/5 transition"
-                  >
-                    <td className="px-5 py-4 font-medium">{c.name}</td>
-                    <td className="px-5 py-4 text-gray-300">{c.email}</td>
-                    <td className="px-5 py-4 text-gray-300">{c.city}</td>
-                    <td className="px-5 py-4 flex gap-4">
-                      <button
-                        onClick={() => handleEdit(c)}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(c.id)}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        Delete
-                      </button>
-                    </td>
+          <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-x-auto">
+            {loading ? (
+              <div className="p-6 text-center text-gray-400">
+                Loading clients...
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-800/80 text-gray-300">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Name</th>
+                    <th className="px-4 py-3 text-left">Email</th>
+                    <th className="px-4 py-3 text-left">Address</th>
+                    <th className="px-4 py-3 text-left">Phone</th>
+                    <th className="px-4 py-3 text-left">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
 
-          {/* PAGINATION */}
-          {/* PAGINATION */}
-          <div className="flex justify-end gap-2 mt-2">
-            <button
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              className="px-3 py-1 bg-gray-800 rounded"
-            >
-              Prev
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i + 1)}
-                className={`px-3 py-1 rounded ${page === i + 1 ? "bg-[#EE2737]" : "bg-gray-800"}`}
-              >
-                {i + 1}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              className="px-3 py-1 bg-gray-800 rounded"
-            >
-              Next
-            </button>
+                <tbody>
+                  {filteredClients.map((c) => (
+                    <tr
+                      key={c._id}
+                      className="border-t border-white/10 hover:bg-white/5"
+                    >
+                      <td className="px-4 py-3">
+                        {c.firstName} {c.lastName}
+                      </td>
+                      <td className="px-4 py-3">{c.email}</td>
+                      <td className="px-4 py-3">{c.address}</td>
+                      <td className="px-4 py-3">{c.phone}</td>
+                      <td className="px-4 py-3 flex gap-3">
+                        <button
+                          onClick={() => handleEdit(c)}
+                          className="text-blue-400"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(c._id)}
+                          className="text-red-400"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </main>
+      </div>
 
-        {/* MODAL */}
-        {open && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm
-                        flex items-center justify-center z-50"
-          >
-            <div
-              className="bg-gray-900 w-full max-w-md p-6
-                            rounded-2xl border border-white/10 shadow-2xl"
-            >
-              <h2 className="text-xl font-semibold mb-5">
-                {editId ? "Edit Client" : "Add Client"}
-              </h2>
+      {/* ================= FULL SCREEN DIALOG ================= */}
+      {open && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 w-full h-full md:w-[500px] md:h-auto md:rounded-xl p-8 overflow-y-auto">
+            <h2 className="text-2xl font-semibold mb-6">
+              {editId ? "Update Client" : "Add Client"}
+            </h2>
+
+            <div className="space-y-4">
+              <input
+                placeholder="First Name"
+                value={form.firstName}
+                onChange={(e) =>
+                  setForm({ ...form, firstName: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700"
+              />
 
               <input
-                placeholder="Name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full mb-3 px-4 py-2 rounded-lg
-                                bg-gray-800 border border-white/10
-                                focus:outline-none"
+                placeholder="Last Name"
+                value={form.lastName}
+                onChange={(e) =>
+                  setForm({ ...form, lastName: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700"
               />
 
               <input
                 placeholder="Email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full mb-3 px-4 py-2 rounded-lg
-                                bg-gray-800 border border-white/10
-                                focus:outline-none"
+                onChange={(e) =>
+                  setForm({ ...form, email: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700"
               />
 
               <input
-                placeholder="City"
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-                className="w-full mb-5 px-4 py-2 rounded-lg
-                                bg-gray-800 border border-white/10
-                                focus:outline-none"
+                placeholder="Address"
+                value={form.address}
+                onChange={(e) =>
+                  setForm({ ...form, address: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700"
               />
 
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setOpen(false)}
-                  className="px-4 py-2 rounded-lg
-                                    bg-gray-700 hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
+              <input
+                placeholder="Phone"
+                value={form.phone}
+                onChange={(e) =>
+                  setForm({ ...form, phone: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded bg-gray-800 border border-gray-700"
+              />
+            </div>
 
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 rounded-lg
-                                    bg-blue-600 hover:bg-blue-700"
-                >
-                  {editId ? "Update" : "Add"}
-                </button>
-              </div>
+            <div className="flex justify-end gap-4 mt-8">
+              <button
+                onClick={() => setOpen(false)}
+                className="px-6 py-3 bg-gray-700 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSave}
+                className="px-6 py-3 bg-[#EE2737] rounded"
+              >
+                {editId ? "Update Client" : "Save Client"}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
