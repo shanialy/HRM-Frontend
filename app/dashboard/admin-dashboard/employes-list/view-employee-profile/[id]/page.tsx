@@ -1,10 +1,12 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
 import { getRequest } from "@/app/services/api";
 import { AxiosError } from "axios";
+import { navigateToChat } from "@/app/utills/chatNavigation";
+import Button from "@/app/components/ui/Button";
 
 type Employee = {
   _id: string;
@@ -26,10 +28,16 @@ type Client = { id: number; name: string; email: string };
 export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
   const employeeId = params?.id;
+  const router = useRouter();
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  const startChat = () => {
+    if (!employeeId) return;
+    navigateToChat(employeeId, router);
+  };
 
   // Dummy clients for sales employees
   const clients: Client[] = [
@@ -123,6 +131,11 @@ export default function EmployeeDetailPage() {
                 <p>🏢 Department: {employee.department || "Not provided"}</p>
                 <p>💰 Salary: ${employee.salary || 0}</p>
               </div>
+              <div className="mt-6">
+                <Button onClick={startChat} className="w-full">
+                  💬 Start Chat
+                </Button>
+              </div>
             </div>
 
             {/* Clients Section */}
@@ -172,6 +185,11 @@ export default function EmployeeDetailPage() {
                 <p>📍 Address: {employee.address || "Not provided"}</p>
                 <p>🏢 Department: {employee.department || "Not provided"}</p>
                 <p>💰 Salary: ${employee.salary || 0}</p>
+              </div>
+              <div className="mt-6">
+                <Button onClick={startChat} className="w-full">
+                  💬 Start Chat
+                </Button>
               </div>
             </div>
           </main>

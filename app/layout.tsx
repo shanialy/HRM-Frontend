@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReduxProvider from "./dashboard/providers/ReduxProvider";
+import SocketProvider from "./dashboard/providers/SocketProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,9 @@ export default function RootLayout({
       >
         {/* ✅ REDUX PROVIDER */}
         <ReduxProvider>
-          {children}
+          <SocketProvider>
+            {children}
+          </SocketProvider>
         </ReduxProvider>
       </body>
     </html>

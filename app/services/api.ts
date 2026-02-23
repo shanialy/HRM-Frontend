@@ -24,10 +24,7 @@ api.interceptors.request.use(
         config.headers = new AxiosHeaders();
       }
 
-      config.headers.set(
-        "Authorization",
-        `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InJhaGVlbDk5QGdtYWlsLmNvbSIsImlkIjoiNjk5MzAzMDFiYzA3NDAwMWIxM2E4ZDAwIiwicm9sZSI6IkVNUExPWUVFIiwiZGVwYXJ0bWVudCI6IlNBTEVTIiwiaWF0IjoxNzcxNDAxNjMzLCJleHAiOjE3NzIwMDY0MzN9.qLiBGeVAtldLVlSq4VE7LAWrbRxfScv9mc-z27MqFQk`,
-      );
+      config.headers.set("Authorization", `Bearer ${token}`);
     }
 
     return config;

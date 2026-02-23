@@ -87,21 +87,21 @@ export default function EmployeeAttendanceDetail() {
             }),
             checkIn: item.time?.checkIn
               ? new Date(item.time.checkIn).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : "-",
             checkOut: item.time?.checkOut
               ? new Date(item.time.checkOut).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : "-",
             status: item.isLeave
               ? "Leave"
               : item.status
                 ? item.status.charAt(0).toUpperCase() +
-                  item.status.slice(1).toLowerCase()
+                item.status.slice(1).toLowerCase()
                 : "Present",
             notes: item.notes || "-",
           }));

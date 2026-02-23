@@ -33,6 +33,7 @@ export type EmployeeFormValues = {
   firstName?: string;
   lastName?: string;
   email?: string;
+  password?: string;
   address?: string;
   phone?: string;
   designation?: string;
@@ -110,6 +111,9 @@ export default function EmployeesListPage() {
     firstName: Yup.string().required("First name is required"),
     lastName: Yup.string().required("Last name is required"),
     email: Yup.string().email("Invalid email").required("Email is required"),
+    password: editId
+      ? Yup.string().min(6, "Password must be at least 6 characters").optional()
+      : Yup.string().min(6, "Password must be at least 6 characters").required("Password is required"),
     phone: Yup.string().required("Phone is required"),
     address: Yup.string().required("Address is required"),
     designation: Yup.string().required("Designation is required"),
@@ -271,6 +275,7 @@ export default function EmployeesListPage() {
                 firstName: form.firstName ?? "",
                 lastName: form.lastName ?? "",
                 email: form.email ?? "",
+                password: "",
                 phone: form.phone ?? "",
                 address: form.address ?? "",
                 designation: form.designation ?? "",
@@ -283,7 +288,7 @@ export default function EmployeesListPage() {
               enableReinitialize
               onSubmit={async (values, { setSubmitting, resetForm }) => {
                 try {
-                  const payload = {
+                  const payload: any = {
                     firstName: values.firstName?.trim() ?? "",
                     lastName: values.lastName?.trim() ?? "",
                     email: values.email?.trim() ?? "",
@@ -298,6 +303,13 @@ export default function EmployeesListPage() {
                         ? Number(values.targetAmount)
                         : undefined,
                   };
+
+                  // Add password only for create or if provided during edit
+                  if (!editId) {
+                    payload.password = values.password?.trim() ?? "";
+                  } else if (values.password?.trim()) {
+                    payload.password = values.password.trim();
+                  }
 
                   if (editId) {
                     await putRequest(`employee/employees/${editId}`, payload);
@@ -317,28 +329,59 @@ export default function EmployeesListPage() {
                 }
               }}
             >
-              {({ isSubmitting }) => (
+              {({ isSubmitting, errors, touched }) => (
                 <Form className="space-y-3">
-                  <Field
-                    name="firstName"
-                    placeholder="First Name"
-                    className="w-full px-4 py-2 bg-gray-800 rounded"
-                  />
-                  <Field
-                    name="lastName"
-                    placeholder="Last Name"
-                    className="w-full px-4 py-2 bg-gray-800 rounded"
-                  />
-                  <Field
-                    name="email"
-                    placeholder="Email"
-                    className="w-full px-4 py-2 bg-gray-800 rounded"
-                  />
-                  <Field
-                    name="phone"
-                    placeholder="Phone"
-                    className="w-full px-4 py-2 bg-gray-800 rounded"
-                  />
+                  <div>
+                    <Field
+                      name="firstName"
+                      placeholder="First Name"
+                      className="w-full px-4 py-2 bg-gray-800 rounded"
+                    />
+                    {errors.firstName && touched.firstName && (
+                      <p className="text-red-400 text-xs mt-1">{errors.firstName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Field
+                      name="lastName"
+                      placeholder="Last Name"
+                      className="w-full px-4 py-2 bg-gray-800 rounded"
+                    />
+                    {errors.lastName && touched.lastName && (
+                      <p className="text-red-400 text-xs mt-1">{errors.lastName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Field
+                      name="email"
+                      placeholder="Email"
+                      className="w-full px-4 py-2 bg-gray-800 rounded"
+                    />
+                    {errors.email && touched.email && (
+                      <p className="text-red-400 text-xs mt-1">{errors.email}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Field
+                      name="password"
+                      type="password"
+                      placeholder={editId ? "Password (leave blank to keep current)" : "Password"}
+                      className="w-full px-4 py-2 bg-gray-800 rounded"
+                    />
+                    {errors.password && touched.password && (
+                      <p className="text-red-400 text-xs mt-1">{errors.password}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Field
+                      name="phone"
+                      placeholder="Phone"
+                      className="w-full px-4 py-2 bg-gray-800 rounded"
+                    />
+                    {errors.phone && touched.phone && (
+                      <p className="text-red-400 text-xs mt-1">{errors.phone}</p>
+                    )}
+                  </div>
                   <Field
                     name="address"
                     placeholder="Address"
