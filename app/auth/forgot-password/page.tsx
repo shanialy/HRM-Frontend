@@ -2,18 +2,36 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Button from "@/app/components/ui/Button"; // import your widget button
+import { useRouter } from "next/navigation";
+import Button from "@/app/components/ui/Button";
+import { postRequest } from "@/app/services/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    setError("");
+
     if (!email) {
-      alert("Please enter your email");
+      setError("Please enter your email");
       return;
     }
 
-    alert(`Password reset link sent to ${email}`);
+    try {
+      setLoading(true);
+      await postRequest("authorization/forgot-password", { email });
+
+      alert("OTP sent to your email!");
+      // Navigate to reset password page with email
+      router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,8 +48,14 @@ export default function ForgotPasswordPage() {
         <h2 className="text-3xl font-bold mb-4 text-white">Forgot Password</h2>
 
         <p className="text-gray-400 text-sm mb-6">
-          Enter your email and we’ll send you a reset link
+          Enter your email and we'll send you an OTP
         </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded text-red-400 text-sm">
+            {error}
+          </div>
+        )}
 
         <input
           type="email"
@@ -45,12 +69,12 @@ export default function ForgotPasswordPage() {
                     focus:outline-none focus:ring-2 focus:ring-[#EE2737]"
         />
 
-        {/* 🔥 Widget Button */}
         <Button
           onClick={handleSubmit}
+          disabled={loading}
           className="w-full py-2 rounded-lg font-semibold"
         >
-          Send Reset Link
+          {loading ? "Sending..." : "Send OTP"}
         </Button>
 
         <div className="mt-6 text-right">

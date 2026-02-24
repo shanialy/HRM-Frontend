@@ -10,8 +10,8 @@ export interface Conversation {
         profilePicture?: string;
     }>;
     lastMessage: string;
-    lastMessageType: string;
-    lastMessageAt: string;
+    messageType: string;
+    updatedAt?: string;
     unreadCount?: number;
 }
 
@@ -32,11 +32,25 @@ export interface Message {
     createdAt: string;
 }
 
+export interface SearchUser {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    profilePicture?: string;
+}
+
 export const chatService = {
+    // Search users by username
+    searchUsers: (username: string, callback: (data: SearchUser[]) => void) => {
+        socketService.emit("searchUsers", { username });
+        socketService.on("searchUsers", callback);
+    },
+
     // Create or get conversation
     createConversation: (receiverId: string, callback: (data: any) => void) => {
         socketService.emit("createConversation", { receiverId });
-        socketService.on("conversationCreated", callback);
+        socketService.on("createConversation", callback);
     },
 
     // Get all conversations
@@ -83,6 +97,11 @@ export const chatService = {
     // Listen for new conversations
     onNewConversation: (callback: (data: any) => void) => {
         socketService.on("newConversation", callback);
+    },
+
+    // Listen for errors
+    onError: (callback: (error: { message: string }) => void) => {
+        socketService.on("error", callback);
     },
 
     // Clean up listeners

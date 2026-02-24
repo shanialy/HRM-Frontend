@@ -54,9 +54,16 @@ export default function ConversationPage() {
 
     chatService.onMessage(handleNewMessage);
 
+    // Listen for errors
+    chatService.onError((error) => {
+      console.error("Chat error:", error.message);
+      alert(error.message);
+    });
+
     return () => {
       chatService.removeListener("message", handleNewMessage);
       chatService.removeListener("getMessages");
+      chatService.removeListener("error");
     };
   }, [chatId, router]);
 
@@ -95,9 +102,9 @@ export default function ConversationPage() {
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* HEADER */}
-        <div className="h-14 px-6 flex items-center justify-between border-b border-white/10 bg-gray-900/80">
+        <div className="h-14 px-6 flex items-center justify-between border-b border-white/10 bg-gray-900/80 flex-shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push("/dashboard/conversation-list/chat-list")}
@@ -160,8 +167,8 @@ export default function ConversationPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* INPUT */}
-        <div className="p-4 border-t border-white/10 bg-gray-900/80 flex gap-3">
+        {/* INPUT - FIXED AT BOTTOM */}
+        <div className="p-4 border-t border-white/10 bg-gray-900/80 flex gap-3 flex-shrink-0">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}

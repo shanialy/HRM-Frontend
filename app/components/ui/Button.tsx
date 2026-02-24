@@ -6,6 +6,7 @@ interface ButtonProps {
   children: ReactNode;
   className?: string;
   onClick?: MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
 }
 
 export default function Button({
@@ -13,6 +14,7 @@ export default function Button({
   children,
   className = "",
   onClick,
+  disabled = false,
 }: ButtonProps) {
   const baseStyles = `
     inline-block px-6 py-3
@@ -22,6 +24,7 @@ export default function Button({
     rounded-[20px]
     shadow-lg
     transition-all duration-300 cursor-pointer
+    disabled:opacity-50 disabled:cursor-not-allowed
     ${className}
   `;
 
@@ -34,7 +37,7 @@ export default function Button({
   }
 
   return (
-    <button onClick={onClick} className={baseStyles}>
+    <button onClick={onClick} disabled={disabled} className={baseStyles}>
       {children}
     </button>
   );

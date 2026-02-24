@@ -9,7 +9,16 @@ export const navigateToChat = (
     userId: string,
     router: AppRouterInstance
 ): void => {
+    // Listen for errors
+    const errorHandler = (error: { message: string }) => {
+        alert(error.message);
+        chatService.removeListener("error", errorHandler);
+    };
+
+    chatService.onError(errorHandler);
+
     chatService.createConversation(userId, (conversation) => {
+        chatService.removeListener("error", errorHandler);
         router.push(`/dashboard/conversation-list?chatId=${conversation._id}`);
     });
 };

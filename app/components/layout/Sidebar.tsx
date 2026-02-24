@@ -40,14 +40,14 @@ export default function Sidebar() {
 
   /* ================= UI ================= */
   return (
-    <aside className="w-64 h-screen bg-gray-900 text-white p-6 flex flex-col">
+    <aside className="w-64 h-screen bg-gray-900 text-white p-6 flex flex-col overflow-hidden">
       {/* TOP */}
-      <div>
+      <div className="flex-1 overflow-y-auto">
         <h2 className="text-xl font-bold mb-8 capitalize text-[#EE2737]">
           {role} Dashboard
         </h2>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2">{/* ... nav links ... */}
           {/* CLIENT */}
           {role === "client" && (
             <>
@@ -176,7 +176,7 @@ export default function Sidebar() {
       </div>
 
       {/* LOGOUT */}
-      <div className="mt-auto">
+      <div className="mt-4 flex-shrink-0">
         <button
           onClick={() => {
             // ✅ Redux clear

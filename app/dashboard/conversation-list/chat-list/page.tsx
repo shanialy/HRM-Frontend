@@ -33,9 +33,16 @@ export default function ChatListPage() {
       fetchConversations();
     });
 
+    // Listen for errors
+    chatService.onError((error) => {
+      console.error("Chat error:", error.message);
+      alert(error.message);
+    });
+
     return () => {
       chatService.removeListener("conversations");
       chatService.removeListener("newConversation");
+      chatService.removeListener("error");
     };
   }, [page]);
 
@@ -148,7 +155,7 @@ export default function ChatListPage() {
                         <td className="px-4 py-4 text-right">
                           <div className="flex flex-col items-end gap-1">
                             <span className="text-xs text-gray-400">
-                              {formatTime(chat.lastMessageAt)}
+                              {formatTime(chat.updatedAt || new Date().toISOString())}
                             </span>
 
                             {(chat.unreadCount ?? 0) > 0 && (

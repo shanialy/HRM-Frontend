@@ -23,7 +23,14 @@ type Employee = {
   image?: string;
 };
 
-type Client = { id: number; name: string; email: string };
+type Client = {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  address?: string;
+};
 
 export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -31,6 +38,7 @@ export default function EmployeeDetailPage() {
   const router = useRouter();
 
   const [employee, setEmployee] = useState<Employee | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -39,21 +47,15 @@ export default function EmployeeDetailPage() {
     navigateToChat(employeeId, router);
   };
 
-  // Dummy clients for sales employees
-  const clients: Client[] = [
-    { id: 1, name: "Acme Corp", email: "acme@gmail.com" },
-    { id: 2, name: "Globex", email: "globex@gmail.com" },
-    { id: 3, name: "Initech", email: "initech@gmail.com" },
-  ];
-
   const filteredClients = useMemo(
     () =>
       clients.filter(
         (c) =>
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.email.toLowerCase().includes(search.toLowerCase()),
+          `${c.firstName} ${c.lastName} ${c.email}`
+            .toLowerCase()
+            .includes(search.toLowerCase()),
       ),
-    [search],
+    [clients, search],
   );
 
   // Fetch employee by ID
@@ -63,9 +65,14 @@ export default function EmployeeDetailPage() {
       setLoading(true);
       const res = await getRequest<{
         success: boolean;
-        data: { employee: Employee };
+        data: {
+          employee: Employee;
+          clients: Client[];
+        };
       }>(`employee/employees/${employeeId}`);
+
       setEmployee(res.data.data.employee);
+      setClients(res.data.data.clients || []);
     } catch (err: unknown) {
       if (err instanceof AxiosError)
         console.error(err.response?.data || err.message);
@@ -150,15 +157,26 @@ export default function EmployeeDetailPage() {
                 />
               </div>
               <div className="space-y-3">
-                {filteredClients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="p-4 rounded-lg bg-gray-800/70 border border-white/10 hover:bg-gray-700 cursor-pointer"
-                  >
-                    <p className="font-medium">{client.name}</p>
-                    <p className="text-sm text-gray-400">{client.email}</p>
+                {filteredClients.length === 0 ? (
+                  <div className="p-4 text-center text-gray-400">
+                    {search ? "No clients found" : "No clients assigned"}
                   </div>
-                ))}
+                ) : (
+                  filteredClients.map((client) => (
+                    <div
+                      key={client._id}
+                      className="p-4 rounded-lg bg-gray-800/70 border border-white/10 hover:bg-gray-700 cursor-pointer"
+                    >
+                      <p className="font-medium">
+                        {client.firstName} {client.lastName}
+                      </p>
+                      <p className="text-sm text-gray-400">{client.email}</p>
+                      {client.phone && (
+                        <p className="text-sm text-gray-400">📞 {client.phone}</p>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </main>

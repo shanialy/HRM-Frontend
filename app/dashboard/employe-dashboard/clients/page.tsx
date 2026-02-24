@@ -3,12 +3,14 @@
 import Sidebar from "@/app/components/layout/Sidebar";
 import Button from "@/app/components/ui/Button";
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   getRequest,
   postRequest,
   putRequest,
   deleteRequest,
 } from "@/app/services/api";
+import { navigateToChat } from "@/app/utills/chatNavigation";
 
 type Client = {
   _id: string;
@@ -24,6 +26,7 @@ type Client = {
 const PAGE_SIZE = 5;
 
 export default function ClientsListPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -213,6 +216,12 @@ export default function ClientsListPage() {
                       <td className="px-4 py-3">{c.address}</td>
                       <td className="px-4 py-3">{c.phone}</td>
                       <td className="px-4 py-3 flex gap-3">
+                        <button
+                          onClick={() => navigateToChat(c._id, router)}
+                          className="text-green-400 hover:text-green-300"
+                        >
+                          💬 Chat
+                        </button>
                         <button
                           onClick={() => handleEdit(c)}
                           className="text-blue-400"

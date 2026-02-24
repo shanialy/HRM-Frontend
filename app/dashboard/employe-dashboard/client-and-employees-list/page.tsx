@@ -5,6 +5,8 @@ import { getRequest } from "@/app/services/api";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { navigateToChat } from "@/app/utills/chatNavigation";
+import { chatService, Conversation } from "@/app/services/chat.service";
+import { useAppSelector } from "@/app/dashboard/redux/hooks";
 
 /* ================= TYPES ================= */
 
@@ -29,31 +31,24 @@ type ClientApi = {
 
 export default function SelectChatUserPage() {
   const router = useRouter();
+  const currentUser = useAppSelector((state) => state.auth.user);
 
   const [searchEmp, setSearchEmp] = useState("");
   const [searchClient, setSearchClient] = useState("");
 
   const [employeesData, setEmployeesData] = useState<EmployeeApi[]>([]);
   const [clientsData, setClientsData] = useState<ClientApi[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   /* ================= FETCH DATA ================= */
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // const empRes = await getRequest<{
-        //   success: boolean;
-        //   data: { employees: EmployeeApi[] };
-        // }>("employee/getAllEmployees");
-
         const clientRes = await getRequest<{
           success: boolean;
           data: { clients: ClientApi[] };
         }>("client/myclients");
-
-        // if (empRes.data.success) {
-        //   setEmployeesData(empRes.data.data.employees);
-        // }
 
         if (clientRes.data.success) {
           setClientsData(clientRes.data.data.clients);
@@ -64,24 +59,43 @@ export default function SelectChatUserPage() {
     };
 
     fetchData();
+
+    // Fetch conversations to filter employees
+    chatService.getConversations(1, 100, (data) => {
+      setConversations(data);
+    });
+
+    return () => {
+      chatService.removeListener("conversations");
+    };
   }, []);
 
   /* ================= FORMAT FOR UI ================= */
 
-  const employees: User[] = useMemo(
-    () =>
-      employeesData
-        .map((emp) => ({
-          id: emp._id,
-          name: `${emp.firstName} ${emp.lastName}`,
-          role: "employee" as const,
-          avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-        }))
-        .filter((u) =>
-          u.name.toLowerCase().includes(searchEmp.toLowerCase()),
-        ),
-    [employeesData, searchEmp],
-  );
+  // Only show employees with whom there's an active conversation
+  const employees: User[] = useMemo(() => {
+    if (!currentUser) return [];
+
+    // Get all employee IDs from conversations
+    const employeeIdsWithChat = conversations
+      .flatMap((conv) => conv.participants)
+      .filter((p) => p._id !== currentUser._id && p.role === "EMPLOYEE")
+      .map((p) => ({
+        id: p._id,
+        name: `${p.firstName} ${p.lastName}`,
+        role: "employee" as const,
+        avatar: p.profilePicture || "https://randomuser.me/api/portraits/men/32.jpg",
+      }));
+
+    // Remove duplicates
+    const uniqueEmployees = Array.from(
+      new Map(employeeIdsWithChat.map((emp) => [emp.id, emp])).values()
+    );
+
+    return uniqueEmployees.filter((u) =>
+      u.name.toLowerCase().includes(searchEmp.toLowerCase())
+    );
+  }, [conversations, currentUser, searchEmp]);
 
   const clients: User[] = useMemo(
     () =>
@@ -112,7 +126,7 @@ export default function SelectChatUserPage() {
         {/* LEFT BOX – EMPLOYEES */}
         <div className="bg-gray-900/70 rounded-xl border border-white/10 flex flex-col">
           <div className="p-4 border-b border-white/10">
-            <h2 className="font-semibold mb-2">Employees</h2>
+            <h2 className="font-semibold mb-2">Employees (Active Chats)</h2>
             <input
               placeholder="Search employee..."
               value={searchEmp}
@@ -122,22 +136,28 @@ export default function SelectChatUserPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {employees.map((user) => (
-              <div
-                key={user.id}
-                onClick={() => goToConversation(user)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5"
-              >
-                <img
-                  src={user.avatar}
-                  className="w-9 h-9 rounded-full object-cover"
-                />
-                <div>
-                  <p className="font-medium">{user.name}</p>
-                  <p className="text-xs text-gray-400">Employee</p>
-                </div>
+            {employees.length === 0 ? (
+              <div className="p-4 text-center text-gray-400">
+                No active chats with employees
               </div>
-            ))}
+            ) : (
+              employees.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => goToConversation(user)}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5"
+                >
+                  <img
+                    src={user.avatar}
+                    className="w-9 h-9 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-medium">{user.name}</p>
+                    <p className="text-xs text-gray-400">Employee</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
