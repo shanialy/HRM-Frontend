@@ -35,6 +35,24 @@ export default function SettingsPage() {
                           border border-white/10
                           rounded-2xl shadow-2xl p-6">
 
+                        {/* ACCOUNT SETTINGS */}
+                        <div>
+                            <h2 className="text-lg font-semibold mb-4">Account</h2>
+                            <ul className="space-y-3">
+                                <li>
+                                    <button
+                                        onClick={() => router.push("/dashboard/settings/change-password")}
+                                        className="text-blue-400 hover:text-blue-300 transition"
+                                    >
+                                        Change Password
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* DIVIDER */}
+                        <div className="border-t border-white/10" />
+
                         {/* POLICIES */}
                         <div>
                             <h2 className="text-lg font-semibold mb-4">Policies</h2>
