@@ -36,9 +36,9 @@ export default function SelectChatUserPage() {
   const [searchEmp, setSearchEmp] = useState("");
   const [searchClient, setSearchClient] = useState("");
 
-  const [employeesData, setEmployeesData] = useState<EmployeeApi[]>([]);
   const [clientsData, setClientsData] = useState<ClientApi[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [searchedEmployees, setSearchedEmployees] = useState<User[]>([]); // 🔥 ADDED
 
   /* ================= FETCH DATA ================= */
 
@@ -60,23 +60,21 @@ export default function SelectChatUserPage() {
 
     fetchData();
 
-    // Fetch conversations to filter employees
     chatService.getConversations(1, 100, (data) => {
       setConversations(data);
     });
 
     return () => {
       chatService.removeListener("conversations");
+      chatService.removeListener("searchUsers"); // 🔥 ADDED CLEANUP
     };
   }, []);
 
-  /* ================= FORMAT FOR UI ================= */
+  /* ================= ACTIVE CHAT EMPLOYEES ================= */
 
-  // Only show employees with whom there's an active conversation
-  const employees: User[] = useMemo(() => {
+  const activeChatEmployees: User[] = useMemo(() => {
     if (!currentUser) return [];
 
-    // Get all employee IDs from conversations
     const employeeIdsWithChat = conversations
       .flatMap((conv) => conv.participants)
       .filter((p) => p._id !== currentUser._id && p.role === "EMPLOYEE")
@@ -84,18 +82,17 @@ export default function SelectChatUserPage() {
         id: p._id,
         name: `${p.firstName} ${p.lastName}`,
         role: "employee" as const,
-        avatar: p.profilePicture || "https://randomuser.me/api/portraits/men/32.jpg",
+        avatar:
+          p.profilePicture ||
+          "https://randomuser.me/api/portraits/men/32.jpg",
       }));
 
-    // Remove duplicates
-    const uniqueEmployees = Array.from(
+    return Array.from(
       new Map(employeeIdsWithChat.map((emp) => [emp.id, emp])).values()
     );
+  }, [conversations, currentUser]);
 
-    return uniqueEmployees.filter((u) =>
-      u.name.toLowerCase().includes(searchEmp.toLowerCase())
-    );
-  }, [conversations, currentUser, searchEmp]);
+  /* ================= CLIENTS ================= */
 
   const clients: User[] = useMemo(
     () =>
@@ -107,9 +104,9 @@ export default function SelectChatUserPage() {
           avatar: "https://randomuser.me/api/portraits/men/65.jpg",
         }))
         .filter((u) =>
-          u.name.toLowerCase().includes(searchClient.toLowerCase()),
+          u.name.toLowerCase().includes(searchClient.toLowerCase())
         ),
-    [clientsData, searchClient],
+    [clientsData, searchClient]
   );
 
   const goToConversation = (user: User) => {
@@ -117,6 +114,10 @@ export default function SelectChatUserPage() {
   };
 
   /* ================= UI ================= */
+
+  // 🔥 UPDATED: decide which employees to show
+  const employeesToShow =
+    searchEmp.trim() !== "" ? searchedEmployees : activeChatEmployees;
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -126,22 +127,47 @@ export default function SelectChatUserPage() {
         {/* LEFT BOX – EMPLOYEES */}
         <div className="bg-gray-900/70 rounded-xl border border-white/10 flex flex-col">
           <div className="p-4 border-b border-white/10">
-            <h2 className="font-semibold mb-2">Employees (Active Chats)</h2>
+            <h2 className="font-semibold mb-2">
+              Employees (Search or Active Chats)
+            </h2>
+
             <input
               placeholder="Search employee..."
               value={searchEmp}
-              onChange={(e) => setSearchEmp(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchEmp(value);
+
+                if (!value.trim()) {
+                  setSearchedEmployees([]);
+                  return;
+                }
+
+                // 🔥 ADDED: SOCKET SEARCH CALL
+                chatService.searchUsers(value, (data) => {
+                  const formatted = data.map((emp) => ({
+                    id: emp._id,
+                    name: `${emp.firstName} ${emp.lastName}`,
+                    role: "employee" as const,
+                    avatar:
+                      emp.profilePicture ||
+                      "https://randomuser.me/api/portraits/men/32.jpg",
+                  }));
+
+                  setSearchedEmployees(formatted);
+                });
+              }}
               className="w-full px-3 py-2 bg-gray-800 rounded"
             />
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {employees.length === 0 ? (
+            {employeesToShow.length === 0 ? (
               <div className="p-4 text-center text-gray-400">
-                No active chats with employees
+                No employees found
               </div>
             ) : (
-              employees.map((user) => (
+              employeesToShow.map((user) => (
                 <div
                   key={user.id}
                   onClick={() => goToConversation(user)}

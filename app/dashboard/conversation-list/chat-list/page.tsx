@@ -17,7 +17,6 @@ export default function ChatListPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Fetch conversations
   useEffect(() => {
     const fetchConversations = () => {
       chatService.getConversations(page, PAGE_SIZE, (data) => {
@@ -28,27 +27,128 @@ export default function ChatListPage() {
 
     fetchConversations();
 
-    // Listen for new conversations
-    chatService.onNewConversation(() => {
-      fetchConversations();
-    });
+    // =====================================================
+    // 🔥 REAL-TIME MESSAGE HANDLER (FIXED)
+    // =====================================================
+    const handleNewMessage = (message: any) => {
+      setChats((prevChats) => {
+        const exists = prevChats.find(
+          (chat) => chat._id === message.conversation
+        );
 
-    // Listen for errors
+        // 🔥 If conversation not in state → insert it manually
+        if (!exists) {
+          return [
+            {
+              _id: message.conversation,
+              participants: message.sender._id === user?._id
+                ? []
+                : [message.sender],
+              lastMessage: message.content || message.messageType,
+              messageType: message.messageType,
+              updatedAt: message.createdAt,
+              unreadCount:
+                message.sender._id !== user?._id ? 1 : 0,
+            } as any,
+            ...prevChats,
+          ];
+        }
+
+        // 🔥 Update existing conversation
+        const updated = prevChats.map((chat) => {
+          if (chat._id === message.conversation) {
+            return {
+              ...chat,
+              lastMessage: message.content || message.messageType,
+              updatedAt: message.createdAt,
+              unreadCount:
+                message.sender._id !== user?._id
+                  ? (chat.unreadCount || 0) + 1
+                  : chat.unreadCount,
+            };
+          }
+          return chat;
+        });
+
+        // 🔥 Move updated chat to top
+        const updatedChat = updated.find(
+          (c) => c._id === message.conversation
+        );
+
+        return [
+          updatedChat!,
+          ...updated.filter((c) => c._id !== message.conversation),
+        ];
+      });
+    };
+
+    chatService.onMessage(handleNewMessage);
+
+    // =====================================================
+    // 🔥 HANDLE NEW CONVERSATION (ALWAYS FETCH)
+    // =====================================================
+    const handleNewConversation = () => {
+      fetchConversations();
+    };
+
+    chatService.onNewConversation(handleNewConversation);
+
+    // =====================================================
+    // 🔥 HANDLE UNREAD UPDATE (PROPER REORDER)
+    // =====================================================
+    const handleUnreadUpdate = ({
+      conversationId,
+      unreadCount,
+    }: {
+      conversationId: string;
+      unreadCount: number;
+    }) => {
+      setChats((prev) => {
+        const exists = prev.find((c) => c._id === conversationId);
+
+        // 🔥 If conversation missing → fetch full list
+        if (!exists) {
+          fetchConversations();
+          return prev;
+        }
+
+        const updated = prev.map((chat) =>
+          chat._id === conversationId
+            ? { ...chat, unreadCount }
+            : chat
+        );
+
+        const updatedChat = updated.find(
+          (c) => c._id === conversationId
+        );
+
+        return [
+          updatedChat!,
+          ...updated.filter((c) => c._id !== conversationId),
+        ];
+      });
+    };
+
+    chatService.onUnreadUpdate(handleUnreadUpdate);
+
     chatService.onError((error) => {
       console.error("Chat error:", error.message);
-      alert(error.message);
     });
 
     return () => {
       chatService.removeListener("conversations");
-      chatService.removeListener("newConversation");
+      chatService.removeListener("newConversation", handleNewConversation);
+      chatService.removeListener("message", handleNewMessage);
+      chatService.removeListener("unreadUpdate", handleUnreadUpdate);
       chatService.removeListener("error");
     };
-  }, [page]);
+  }, [page, user]);
 
   const filteredChats = useMemo(() => {
     return chats.filter((chat) => {
-      const otherUser = chat.participants.find((p) => p._id !== user?._id);
+      const otherUser = chat.participants.find(
+        (p) => p._id !== user?._id
+      );
       const name = otherUser
         ? `${otherUser.firstName} ${otherUser.lastName}`
         : "";
@@ -57,8 +157,6 @@ export default function ChatListPage() {
         .includes(search.toLowerCase());
     });
   }, [chats, search, user]);
-
-  const totalPages = Math.ceil(filteredChats.length / PAGE_SIZE);
 
   const paginatedChats = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -80,7 +178,8 @@ export default function ChatListPage() {
     if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins} min ago`;
     if (diffHours < 24) return `${diffHours} hr ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    if (diffDays < 7)
+      return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
     return messageDate.toLocaleDateString();
   };
 
@@ -139,9 +238,7 @@ export default function ChatListPage() {
                               `https://ui-avatars.com/api/?name=${otherUser?.firstName}+${otherUser?.lastName}`
                             }
                             className="w-10 h-10 rounded-full object-cover"
-                            alt={`${otherUser?.firstName} ${otherUser?.lastName}`}
                           />
-
                           <div className="flex flex-col">
                             <span className="font-semibold">
                               {otherUser?.firstName} {otherUser?.lastName}
@@ -155,7 +252,10 @@ export default function ChatListPage() {
                         <td className="px-4 py-4 text-right">
                           <div className="flex flex-col items-end gap-1">
                             <span className="text-xs text-gray-400">
-                              {formatTime(chat.updatedAt || new Date().toISOString())}
+                              {formatTime(
+                                chat.updatedAt ||
+                                  new Date().toISOString()
+                              )}
                             </span>
 
                             {(chat.unreadCount ?? 0) > 0 && (
@@ -172,35 +272,6 @@ export default function ChatListPage() {
               </table>
             )}
           </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="px-3 py-1 bg-gray-800 rounded"
-              >
-                Prev
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPage(i + 1)}
-                  className={`px-3 py-1 rounded ${page === i + 1 ? "bg-[#EE2737]" : "bg-gray-800"
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-
-              <button
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                className="px-3 py-1 bg-gray-800 rounded"
-              >
-                Next
-              </button>
-            </div>
-          )}
         </main>
       </div>
     </div>
