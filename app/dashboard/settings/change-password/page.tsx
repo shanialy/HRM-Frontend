@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/app/components/layout/Sidebar";
-import { putRequest } from "@/app/services/api";
+import { postRequest, putRequest } from "@/app/services/api";
 import Button from "@/app/components/ui/Button";
 
 export default function ChangePasswordPage() {
@@ -34,7 +34,7 @@ export default function ChangePasswordPage() {
 
         try {
             setLoading(true);
-            await putRequest("authorization/change-password", {
+            await postRequest("authorization/change-password", {
                 oldPassword,
                 newPassword,
             });

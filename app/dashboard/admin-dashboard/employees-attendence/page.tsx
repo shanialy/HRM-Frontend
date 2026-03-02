@@ -5,7 +5,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getRequest } from "@/app/services/api";
 
-// Types
+// ================= TYPES =================
+
 interface User {
   _id: string;
   firstName: string;
@@ -34,28 +35,20 @@ interface AttendanceRow {
   absent: number;
 }
 
-// Constants
+// ================= CONSTANTS =================
+
 const PAGE_SIZE = 15;
+
 const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
 ];
+
 const years = [2024, 2025, 2026, 2027];
 
 export default function AttendancePage() {
   const router = useRouter();
 
-  // States
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("February");
@@ -64,38 +57,100 @@ export default function AttendancePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // API fetch function (like fetchEmployees)
-  const fetchAttendance = async (pageNumber = 1) => {
+  // ================= HELPER =================
+
+  const getDaysInMonth = (month: number, year: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  // ================= FETCH FUNCTION =================
+
+  const fetchAttendance = async () => {
     try {
       setLoading(true);
 
-      // Call API using getRequest helper
-      const res = await getRequest<{
-        status: number;
-        success: boolean;
-        message: string;
-        data: {
-          attendance: AttendanceAPI[];
-          pagination: { totalPages: number };
-        };
+      // ✅ 1. Fetch ALL employees (no pagination)
+      const employeesRes = await getRequest<{
+        data: { employees: User[] };
       }>(
-        `attendance/attendance/admin?month=${months.indexOf(month) + 1}&year=${year}&page=${pageNumber}&limit=${PAGE_SIZE}`,
+        `employee/getAllEmployees?limit=100&search=${search}`
       );
 
-      // Map API response to table rows
-      const rows: AttendanceRow[] = (res.data.data.attendance || []).map(
-        (item) => ({
-          id: item.user._id, // <--- important, row.id = user._id
-          name: `${item.user.firstName} ${item.user.lastName}`,
-          email: item.user.email,
-          present: item.isLeave ? 0 : 1,
-          absent: item.isLeave ? 1 : 0,
-        }),
+      const allEmployees = employeesRes.data.data.employees || [];
+
+      // ✅ 2. Fetch ALL attendance pages (backend pagination safe)
+      let allAttendanceRecords: AttendanceAPI[] = [];
+      let currentPage = 1;
+      let totalAttendancePages = 1;
+
+      do {
+        const res = await getRequest<{
+          status: number;
+          success: boolean;
+          message: string;
+          data: {
+            attendance: AttendanceAPI[];
+            pagination: {
+              totalPages: number;
+            };
+          };
+        }>(
+          `attendance/attendance/admin?month=${months.indexOf(month) + 1
+          }&year=${year}&page=${currentPage}&limit=100`
+        );
+
+        const records = res.data.data.attendance || [];
+
+        allAttendanceRecords = [
+          ...allAttendanceRecords,
+          ...records,
+        ];
+
+        totalAttendancePages =
+          res.data.data.pagination.totalPages;
+
+        currentPage++;
+
+      } while (currentPage <= totalAttendancePages);
+
+      // ✅ 3. Calculate total days
+      const totalDays = getDaysInMonth(
+        months.indexOf(month) + 1,
+        year
       );
+
+      // ✅ 4. Build attendance map
+      const attendanceMap: Record<string, number> = {};
+
+      allAttendanceRecords.forEach((item) => {
+        if (!item.isLeave) {
+          const userId = item.user._id;
+          attendanceMap[userId] =
+            (attendanceMap[userId] || 0) + 1;
+        }
+      });
+
+      // ✅ 5. Build final summary rows
+      const rows: AttendanceRow[] = allEmployees.map((emp) => {
+        const present = attendanceMap[emp._id] || 0;
+
+        return {
+          id: emp._id,
+          name: `${emp.firstName} ${emp.lastName}`,
+          email: emp.email,
+          present,
+          absent: totalDays - present,
+        };
+      });
 
       setAttendance(rows);
-      setTotalPages(res.data.data.pagination?.totalPages || 1);
-      setPage(pageNumber);
+
+      // ✅ 6. Frontend pagination calculate
+      const calculatedTotalPages = Math.ceil(
+        rows.length / PAGE_SIZE
+      );
+      setTotalPages(calculatedTotalPages);
+
     } catch (error) {
       console.error("Failed to fetch attendance:", error);
       setAttendance([]);
@@ -105,26 +160,34 @@ export default function AttendancePage() {
     }
   };
 
-  // Fetch attendance whenever month, year, or page changes
   useEffect(() => {
-    fetchAttendance(page);
-  }, [month, year, page]);
+    fetchAttendance();
+  }, [month, year, search]);
 
-  // Filter logic (search)
+  // ================= FILTER =================
+
   const filteredAttendance = useMemo(() => {
     return attendance.filter(
       (a) =>
         a.name.toLowerCase().includes(search.toLowerCase()) ||
-        a.email.toLowerCase().includes(search.toLowerCase()),
+        a.email.toLowerCase().includes(search.toLowerCase())
     );
   }, [attendance, search]);
+
+  // ✅ Apply frontend pagination
+  const paginatedAttendance = filteredAttendance.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
+
+  // ================= UI =================
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
-        {/* APP BAR */}
+
         <div className="h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
           <h1 className="text-lg font-semibold mx-auto">Attendance</h1>
 
@@ -139,7 +202,6 @@ export default function AttendancePage() {
           />
         </div>
 
-        {/* FILTERS */}
         <div className="flex flex-wrap gap-4 px-6 py-4">
           <select
             value={month}
@@ -150,9 +212,7 @@ export default function AttendancePage() {
             className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
           >
             {months.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
+              <option key={m} value={m}>{m}</option>
             ))}
           </select>
 
@@ -165,14 +225,11 @@ export default function AttendancePage() {
             className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
           >
             {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
+              <option key={y} value={y}>{y}</option>
             ))}
           </select>
         </div>
 
-        {/* TABLE */}
         <main className="flex-1 p-6">
           <div className="overflow-x-auto bg-gray-900/70 rounded-xl border border-white/10">
             <table className="w-full text-sm">
@@ -188,29 +245,23 @@ export default function AttendancePage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-6 text-center text-gray-400"
-                    >
+                    <td colSpan={4} className="px-5 py-6 text-center text-gray-400">
                       Loading...
                     </td>
                   </tr>
-                ) : filteredAttendance.length === 0 ? (
+                ) : paginatedAttendance.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-5 py-6 text-center text-gray-400"
-                    >
+                    <td colSpan={4} className="px-5 py-6 text-center text-gray-400">
                       No records found
                     </td>
                   </tr>
                 ) : (
-                  filteredAttendance.map((row) => (
+                  paginatedAttendance.map((row) => (
                     <tr
                       key={row.id}
                       onClick={() =>
                         router.push(
-                          `/dashboard/admin-dashboard/employees-attendence/employee-view-attendance?employeeId=${row.id}`,
+                          `/dashboard/admin-dashboard/employees-attendence/employee-view-attendance?employeeId=${row.id}`
                         )
                       }
                       className="border-t border-white/10 hover:bg-white/5 cursor-pointer"
@@ -230,8 +281,8 @@ export default function AttendancePage() {
             </table>
           </div>
 
-          {/* PAGINATION */}
-          <div className="flex justify-end gap-2 mt-2">
+          {/* ✅ Pagination Controls */}
+          <div className="flex justify-end gap-2 mt-4">
             <button
               onClick={() => setPage((p) => Math.max(p - 1, 1))}
               className="px-3 py-1 bg-gray-800 rounded"
@@ -248,13 +299,17 @@ export default function AttendancePage() {
                 {i + 1}
               </button>
             ))}
+
             <button
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              onClick={() =>
+                setPage((p) => Math.min(p + 1, totalPages))
+              }
               className="px-3 py-1 bg-gray-800 rounded"
             >
               Next
             </button>
           </div>
+
         </main>
       </div>
     </div>
