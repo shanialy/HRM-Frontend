@@ -4,9 +4,11 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
+
 import {
   getRequest,
   putRequest,
+  patchRequest,
   deleteRequest,
   postRequest,
 } from "@/app/services/api";
@@ -43,7 +45,8 @@ export type EmployeeFormValues = {
   targetAmount?: number;
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 15;
+
 
 // --------- CREATE EMPLOYEE SERVICE ---------
 // const createEmployee = (data: {
@@ -64,6 +67,8 @@ const PAGE_SIZE = 5;
 export default function EmployeesListPage() {
   const router = useRouter();
 
+
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -72,6 +77,18 @@ export default function EmployeesListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState<EmployeeFormValues>({});
+  const [successMessage, setSuccessMessage] = useState("");
+
+
+    useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   // --------- FETCH EMPLOYEES ---------
   const fetchEmployees = async (pageNumber = 1) => {
@@ -82,7 +99,7 @@ export default function EmployeesListPage() {
         success: boolean;
         message: string;
         data: { employees: Employee[]; pagination: { totalPages: number } };
-      }>(`employee/getAllEmployees?page=${pageNumber}&limit=${PAGE_SIZE}`);
+      }>(`employee/getAllEmployees?page=${pageNumber}&limit=${PAGE_SIZE}&search=${search}`);
       setEmployees(res.data.data.employees || []);
       setTotalPages(res.data.data.pagination?.totalPages || 1);
     } catch (error) {
@@ -94,7 +111,7 @@ export default function EmployeesListPage() {
 
   useEffect(() => {
     fetchEmployees(page);
-  }, [page]);
+  }, [page,search]);
 
   // --------- FILTER ---------
   const displayedEmployees = useMemo(() => {
@@ -111,37 +128,41 @@ export default function EmployeesListPage() {
     firstName: Yup.string().required("First name is required"),
     lastName: Yup.string().required("Last name is required"),
     email: Yup.string().email("Invalid email").required("Email is required"),
-    password: editId
-      ? Yup.string().min(6, "Password must be at least 6 characters").optional()
-      : Yup.string().min(6, "Password must be at least 6 characters").required("Password is required"),
+   password: Yup.string().notRequired(),
     phone: Yup.string().required("Phone is required"),
     address: Yup.string().required("Address is required"),
     designation: Yup.string().required("Designation is required"),
     department: Yup.string().required("Department is required"),
-    userType: Yup.string().required("User type is required"),
+    userType: Yup.string().notRequired(), // ✅ required hata diya
     salary: Yup.number().required("Salary is required").min(0),
     targetAmount: Yup.number().min(0).optional(),
   });
 
-  // --------- DELETE EMPLOYEE ---------
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this employee?")) return;
-    try {
-      await deleteRequest(`employee/employees/${id}`);
-      setEmployees((prev) => prev.filter((emp) => emp._id !== id));
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        console.error("Delete Error:", error.response?.data || error.message);
-      } else {
-        console.error("Delete Error:", error);
-      }
-      alert("Failed to delete employee.");
-    }
-  };
+const handleDelete = async (id: string) => {
+  if (!confirm("Are you sure you want to delete this employee?")) return;
+
+  try {
+    await patchRequest(`employee/employees/${id}`, {
+      status: "INACTIVE",
+    });
+
+    setEmployees((prev) => prev.filter((emp) => emp._id !== id));
+
+    setSuccessMessage("Employee Deleted Successfully ✅"); // ✅ ADD THIS
+  } catch (error) {
+    console.error("Delete Error:", error);
+    alert("Failed to delete employee.");
+  }
+};
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
+      {successMessage && (
+  <div className="fixed top-5 right-5 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+    {successMessage}
+  </div>
+)}
 
       <div className="flex-1 flex flex-col">
         {/* APP BAR */}
@@ -296,7 +317,6 @@ export default function EmployeesListPage() {
                     address: values.address?.trim() ?? "",
                     designation: values.designation?.trim() ?? "",
                     department: values.department?.trim() ?? "",
-                    userType: values.userType?.trim() ?? "",
                     salary: Number(values.salary ?? 0),
                     targetAmount:
                       values.targetAmount !== undefined
@@ -304,17 +324,14 @@ export default function EmployeesListPage() {
                         : undefined,
                   };
 
-                  // Add password only for create or if provided during edit
-                  if (!editId) {
-                    payload.password = values.password?.trim() ?? "";
-                  } else if (values.password?.trim()) {
-                    payload.password = values.password.trim();
-                  }
+                 
 
                   if (editId) {
                     await putRequest(`employee/employees/${editId}`, payload);
+                     setSuccessMessage("Employee Updated Successfully ✅"); 
                   } else {
                     await createEmployee(payload);
+                    setSuccessMessage("Employee Added Successfully");
                   }
 
                   await fetchEmployees(page);
@@ -361,17 +378,7 @@ export default function EmployeesListPage() {
                       <p className="text-red-400 text-xs mt-1">{errors.email}</p>
                     )}
                   </div>
-                  <div>
-                    <Field
-                      name="password"
-                      type="password"
-                      placeholder={editId ? "Password (leave blank to keep current)" : "Password"}
-                      className="w-full px-4 py-2 bg-gray-800 rounded"
-                    />
-                    {errors.password && touched.password && (
-                      <p className="text-red-400 text-xs mt-1">{errors.password}</p>
-                    )}
-                  </div>
+                  
                   <div>
                     <Field
                       name="phone"
@@ -397,11 +404,7 @@ export default function EmployeesListPage() {
                     placeholder="Department"
                     className="w-full px-4 py-2 bg-gray-800 rounded"
                   />
-                  <Field
-                    name="userType"
-                    placeholder="User Type"
-                    className="w-full px-4 py-2 bg-gray-800 rounded"
-                  />
+                 
                   <Field
                     name="salary"
                     type="number"

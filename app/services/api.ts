@@ -44,6 +44,11 @@ export const postRequest = <T, D = unknown>(
   data?: D,
   config?: AxiosRequestConfig,
 ): Promise<AxiosResponse<T>> => api.post<T>(url, data, config);
+export const patchRequest = <T, D = unknown>(
+  url: string,
+  data?: D,
+  config?: AxiosRequestConfig,
+): Promise<AxiosResponse<T>> => api.patch<T>(url, data, config);
 
 export const putRequest = <T, D = unknown>(
   url: string,

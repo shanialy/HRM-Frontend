@@ -35,7 +35,7 @@ interface AttendanceRow {
 }
 
 // Constants
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 15;
 const months = [
   "January",
   "February",

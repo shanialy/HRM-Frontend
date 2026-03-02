@@ -302,14 +302,14 @@ export default function ClientsListPage() {
             <div className="flex justify-end gap-4 mt-8">
               <button
                 onClick={() => setOpen(false)}
-                className="px-6 py-3 bg-gray-700 rounded"
+                className="px-6 py-3 bg-gray-700 rounded cursor-pointer"
               >
                 Cancel
               </button>
 
               <button
                 onClick={handleSave}
-                className="px-6 py-3 bg-[#EE2737] rounded"
+                className="px-6 py-3 bg-[#EE2737] rounded cursor-pointer"
               >
                 {editId ? "Update Client" : "Save Client"}
               </button>

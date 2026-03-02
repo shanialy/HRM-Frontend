@@ -165,7 +165,7 @@ export default function EmployeeDetailPage() {
                   filteredClients.map((client) => (
                     <div
                       key={client._id}
-                      className="p-4 rounded-lg bg-gray-800/70 border border-white/10 hover:bg-gray-700 cursor-pointer"
+                      className="p-4 rounded-lg bg-gray-800/70 border border-white/10 hover:bg-gray-700 cursor-pointer !cursor-pointer"
                     >
                       <p className="font-medium">
                         {client.firstName} {client.lastName}
