@@ -17,6 +17,7 @@ const PAGE_SIZE = 6;
 export default function ChatListPage() {
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
+  console.log("USER DATA:", user); 
   const token = useAppSelector((state) => state.auth.token);
 
   const [chats, setChats] = useState<Conversation[]>([]);
@@ -26,18 +27,45 @@ export default function ChatListPage() {
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
+  // ✅ CLIENT SEARCH STATES
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientResults, setClientResults] = useState<any[]>([]);
+
+  // ================= EMPLOYEE SEARCH =================
   const handleUserSearch = (value: string) => {
-  setUserSearch(value);
+    setUserSearch(value);
 
-  if (!value.trim()) {
-    setSearchResults([]);
-    return;
-  }
+    if (!value.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
-  chatService.searchUsers(value, (users) => {
-    setSearchResults(users);
-  });
-};
+    chatService.searchUsers(value, (users: any[]) => {
+      // ✅ CLIENT ko remove kar diya
+      const employeesOnly = users.filter(
+        (u) => u.role !== "CLIENT"
+      );
+      setSearchResults(employeesOnly);
+    });
+  };
+
+  // ================= CLIENT SEARCH =================
+  const handleClientSearch = (value: string) => {
+    setClientSearch(value);
+
+    if (!value.trim()) {
+      setClientResults([]);
+      return;
+    }
+
+    chatService.searchUsers(value, (users: any[]) => {
+      // ✅ Sirf CLIENT role
+      const clientsOnly = users.filter(
+        (u) => u.role === "CLIENT"
+      );
+      setClientResults(clientsOnly);
+    });
+  };
 
   // ================= FETCH WHEN SOCKET READY =================
   useEffect(() => {
@@ -60,63 +88,58 @@ export default function ChatListPage() {
     } else {
       socket.once("connect", fetchConversations);
     }
-
   }, [token, user, page]);
 
   // ================= REALTIME LISTENERS =================
-// ================= REALTIME LISTENERS =================
-useEffect(() => {
-  if (!token || !user) return;
+  useEffect(() => {
+    if (!token || !user) return;
 
-  const handleMessage = (newMessage: any) => {
-    setChats((prev) => {
-      const updated = prev.map((chat) =>
-        chat._id === newMessage.conversation
-          ? {
-              ...chat,
-              lastMessage:
-                newMessage.content || newMessage.messageType,
-              updatedAt: new Date().toISOString(),
-            }
-          : chat
+    const handleMessage = (newMessage: any) => {
+      setChats((prev) => {
+        const updated = prev.map((chat) =>
+          chat._id === newMessage.conversation
+            ? {
+                ...chat,
+                lastMessage:
+                  newMessage.content || newMessage.messageType,
+                updatedAt: new Date().toISOString(),
+              }
+            : chat
+        );
+
+        return updated.sort(
+          (a, b) =>
+            new Date(b.updatedAt!).getTime() -
+            new Date(a.updatedAt!).getTime()
+        );
+      });
+    };
+
+    const handleUnread = ({ conversationId, unreadCount }: any) => {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat._id === conversationId
+            ? { ...chat, unreadCount }
+            : chat
+        )
       );
+    };
 
-      // 🔥 Move updated chat to top
-      return updated.sort(
-        (a, b) =>
-          new Date(b.updatedAt!).getTime() -
-          new Date(a.updatedAt!).getTime()
-      );
-    });
-  };
+    const handleNewConversation = (conversation: any) => {
+      setChats((prev) => [conversation, ...prev]);
+    };
 
-  const handleUnread = ({
-    conversationId,
-    unreadCount,
-  }: any) => {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat._id === conversationId
-          ? { ...chat, unreadCount }
-          : chat
-      )
-    );
-  };
+    socketService.on("message", handleMessage);
+    socketService.on("unreadUpdate", handleUnread);
+    socketService.on("newConversation", handleNewConversation);
 
-  const handleNewConversation = (conversation: any) => {
-    setChats((prev) => [conversation, ...prev]);
-  };
+    return () => {
+      socketService.off("message", handleMessage);
+      socketService.off("unreadUpdate", handleUnread);
+      socketService.off("newConversation", handleNewConversation);
+    };
+  }, [token, user]);
 
-  socketService.on("message", handleMessage);
-  socketService.on("unreadUpdate", handleUnread);
-  socketService.on("newConversation", handleNewConversation);
-
-  return () => {
-    socketService.off("message", handleMessage);
-    socketService.off("unreadUpdate", handleUnread);
-    socketService.off("newConversation", handleNewConversation);
-  };
-}, [token, user]);
   // ================= FILTER =================
   const filteredChats = useMemo(() => {
     return chats.filter((chat) => {
@@ -161,131 +184,202 @@ useEffect(() => {
   };
 
   return (
-  <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-    <Sidebar />
+    <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+      <Sidebar />
 
-    <div className="flex-1 flex flex-col">
-      <div className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
-        <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-          Chats
-        </h1>
+      <div className="flex-1 flex flex-col">
+        <div className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
+            Chats
+          </h1>
 
-        {/* RIGHT SIDE SEARCH AREA */}
-        <div className="ml-auto flex items-center gap-3 relative">
+          <div className="ml-auto flex items-center gap-3 relative">
 
-          {/* Search Chats */}
-          <input
-            placeholder="Search chats..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
-          />
-
-          {/* Employee Search Wrapper */}
-          <div className="relative">
             <input
-              placeholder="Search employees..."
-              value={userSearch}
-              onChange={(e) => handleUserSearch(e.target.value)}
-              className="w-64 px-3 py-2 rounded bg-gray-800 border border-white/10"
+              placeholder="Search chats..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
             />
 
-            {/* Dropdown */}
-            {searchResults.length > 0 && (
-              <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded border border-white/10 shadow-lg z-50 max-h-60 overflow-y-auto">
-                {searchResults.map((user) => (
-                  <div
-                    key={user._id}
-                    onClick={() => {
-                      chatService.createConversation(user._id, (conversation) => {
-                        router.push(
-                          `/dashboard/conversation-list?chatId=${conversation._id}`
-                        );
-                      });
-                    }}
-                    className="p-3 hover:bg-white/10 cursor-pointer text-sm"
-                  >
-                    {user.firstName} {user.lastName}
-                  </div>
-                ))}
-              </div>
-            )}
+           {/* 👇 ROLE BASED SEARCH CONTROLS */}
+
+{/* ================= ADMIN + EMPLOYEE ================= */}
+{user?.role === "ADMIN" && (
+  /* ADMIN ko sirf employees search karna allowed */
+  <div className="relative">
+    <input
+      placeholder="Search employees..."
+      value={userSearch}
+      onChange={(e) => handleUserSearch(e.target.value)}
+      className="w-64 px-3 py-2 rounded bg-gray-800 border border-white/10"
+    />
+
+    {searchResults.length > 0 && (
+      <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded border border-white/10 shadow-lg z-50 max-h-60 overflow-y-auto">
+        {searchResults.map((user) => (
+          <div
+            key={user._id}
+            onClick={() => {
+              chatService.createConversation(user._id, (conversation) => {
+                router.push(
+                  `/dashboard/conversation-list?chatId=${conversation._id}`
+                );
+              });
+            }}
+            className="p-3 hover:bg-white/10 cursor-pointer text-sm"
+          >
+            {user.firstName} {user.lastName}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{/* ================= EMPLOYEE ================= */}
+{user?.role === "EMPLOYEE" &&   (
+  <>
+    {/* Employee Search */}
+    <div className="relative">
+      <input
+        placeholder="Search employees..."
+        value={userSearch}
+        onChange={(e) => handleUserSearch(e.target.value)}
+        className="w-64 px-3 py-2 rounded bg-gray-800 border border-white/10"
+      />
+
+      {searchResults.length > 0 && (
+        <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded border border-white/10 shadow-lg z-50 max-h-60 overflow-y-auto">
+          {searchResults.map((user) => (
+            <div
+              key={user._id}
+              onClick={() => {
+                chatService.createConversation(user._id, (conversation) => {
+                  router.push(
+                    `/dashboard/conversation-list?chatId=${conversation._id}`
+                  );
+                });
+              }}
+              className="p-3 hover:bg-white/10 cursor-pointer text-sm"
+            >
+              {user.firstName} {user.lastName}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+   {/* Client Search (ONLY FOR SALES EMPLOYEE) */}
+{user?.role === "EMPLOYEE" && user?.department === "SALES" && (
+  <div className="relative">
+    <input
+      placeholder="Search clients..."
+      value={clientSearch}
+      onChange={(e) => handleClientSearch(e.target.value)}
+      className="w-64 px-3 py-2 rounded bg-gray-800 border border-white/10"
+    />
+
+    {clientResults.length > 0 && (
+      <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded border border-white/10 shadow-lg z-50 max-h-60 overflow-y-auto">
+        {clientResults.map((client) => (
+          <div
+            key={client._id}
+            onClick={() => {
+              chatService.createConversation(client._id, (conversation) => {
+                router.push(
+                  `/dashboard/conversation-list?chatId=${conversation._id}`
+                );
+              });
+            }}
+            className="p-3 hover:bg-white/10 cursor-pointer text-sm"
+          >
+            {client.firstName} {client.lastName}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+  </>
+)}
+
           </div>
         </div>
-      </div>
 
-      <main className="flex-1 p-6">
-        <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-hidden">
-          {loading ? (
-            <div className="p-6 text-center text-gray-400">
-              Loading chats...
-            </div>
-          ) : paginatedChats.length === 0 ? (
-            <div className="p-6 text-center text-gray-400">
-              No conversations yet
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {paginatedChats.map((chat) => {
-                  const otherUser = getOtherUser(chat.participants);
+        {/* Conversations Table remains SAME */}
+        <main className="flex-1 p-6">
+          <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-hidden">
+            {loading ? (
+              <div className="p-6 text-center text-gray-400">
+                Loading chats...
+              </div>
+            ) : paginatedChats.length === 0 ? (
+              <div className="p-6 text-center text-gray-400">
+                No conversations yet
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <tbody>
+                  {paginatedChats.map((chat) => {
+                    const otherUser = getOtherUser(chat.participants);
 
-                  return (
-                    <tr
-                      key={chat._id}
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/conversation-list?chatId=${chat._id}`
-                        )
-                      }
-                      className="border-t border-white/10 hover:bg-white/5 cursor-pointer"
-                    >
-                      <td className="px-4 py-4 flex items-center gap-3">
-                        <img
-                          src={
-                            otherUser?.profilePicture ||
-                            `https://ui-avatars.com/api/?name=${otherUser?.firstName}+${otherUser?.lastName}`
-                          }
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-semibold">
-                            {otherUser?.firstName} {otherUser?.lastName}
-                          </span>
-                          <span className="text-gray-400 text-xs truncate max-w-xs">
-                            {chat.lastMessage}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="text-xs text-gray-400">
-                            {formatTime(
-                              chat.updatedAt ||
-                                new Date().toISOString()
-                            )}
-                          </span>
-
-                          {(chat.unreadCount ?? 0) > 0 && (
-                            <span className="bg-[#EE2737] text-xs px-2 py-0.5 rounded-full">
-                              {chat.unreadCount}
+                    return (
+                      <tr
+                        key={chat._id}
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/conversation-list?chatId=${chat._id}`
+                          )
+                        }
+                        className="border-t border-white/10 hover:bg-white/5 cursor-pointer"
+                      >
+                        <td className="px-4 py-4 flex items-center gap-3">
+                          <img
+                            src={
+                              otherUser?.profilePicture ||
+                              `https://ui-avatars.com/api/?name=${otherUser?.firstName}+${otherUser?.lastName}`
+                            }
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-semibold">
+                              {otherUser?.firstName} {otherUser?.lastName}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
+                            <span className="text-gray-400 text-xs truncate max-w-xs">
+                              {chat.lastMessage}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-xs text-gray-400">
+                              {formatTime(
+                                chat.updatedAt ||
+                                  new Date().toISOString()
+                              )}
+                            </span>
+
+                            {(chat.unreadCount ?? 0) > 0 && (
+                              <span className="bg-[#EE2737] text-xs px-2 py-0.5 rounded-full">
+                                {chat.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
 }

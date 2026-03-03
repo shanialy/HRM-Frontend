@@ -23,12 +23,15 @@ type Client = {
   createdAt?: string;
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 15;
 
 export default function ClientsListPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ✅ SUCCESS POPUP STATE
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -103,6 +106,12 @@ export default function ClientsListPage() {
 
       await fetchClients(page);
 
+      // ✅ SUCCESS POPUP TRIGGER (3 seconds)
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+
       setForm({
         firstName: "",
         lastName: "",
@@ -123,7 +132,7 @@ export default function ClientsListPage() {
     if (!confirm("Are you sure you want to delete this client?")) return;
 
     try {
-   await deleteRequest(`client/delete-client/${id}`);
+      await deleteRequest(`client/delete-client/${id}`);
       await fetchClients(page);
     } catch (error) {
       console.error("Delete Client Error:", error);
@@ -146,6 +155,14 @@ export default function ClientsListPage() {
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+
+      {/* ✅ SUCCESS POPUP UI (Top Center - Auto Hide) */}
+      {showSuccess && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300">
+          Client created successfully
+        </div>
+      )}
+
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
@@ -244,7 +261,7 @@ export default function ClientsListPage() {
         </main>
       </div>
 
-      {/* ================= FULL SCREEN DIALOG ================= */}
+      {/* FULL SCREEN DIALOG (unchanged) */}
       {open && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-gray-900 w-full h-full md:w-[500px] md:h-auto md:rounded-xl p-8 overflow-y-auto">
