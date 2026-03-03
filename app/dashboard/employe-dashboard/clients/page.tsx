@@ -123,7 +123,7 @@ export default function ClientsListPage() {
     if (!confirm("Are you sure you want to delete this client?")) return;
 
     try {
-      await deleteRequest(`client/deleteClient/${id}`);
+   await deleteRequest(`client/delete-client/${id}`);
       await fetchClients(page);
     } catch (error) {
       console.error("Delete Client Error:", error);

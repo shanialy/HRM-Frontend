@@ -45,30 +45,39 @@ export const chatService = {
   // 🔍 SEARCH USERS
   // =========================================================
   searchUsers: (username: string, callback: (data: SearchUser[]) => void) => {
-    socketService.off("searchUsers"); // 🔥 FIX: remove old listener
-    socketService.on("searchUsers", callback); // 🔥 FIX: listener FIRST
-    socketService.emit("searchUsers", { username }); // 🔥 THEN emit
+    socketService.off("searchUsers"); // 🔥 important
+
+    socketService.on("searchUsers", (data: SearchUser[]) => {
+      console.log("🔥 SEARCH RESULT:", data); // debug
+      callback(data);
+    });
+
+    socketService.emit("searchUsers", { username });
   },
 
   // =========================================================
   // 🆕 CREATE CONVERSATION
   // =========================================================
   createConversation: (receiverId: string, callback: (data: any) => void) => {
-    socketService.off("createConversation"); // 🔥 FIX: prevent duplicate listeners
-    socketService.on("createConversation", callback); // 🔥 listener first
-    socketService.emit("createConversation", { receiverId }); // 🔥 then emit
+    socketService.on("createConversation", callback);
+    socketService.emit("createConversation", { receiverId });
   },
 
   // =========================================================
-  // 📜 GET CONVERSATIONS (MAIN FIX HERE)
+  // 📜 GET CONVERSATIONS
   // =========================================================
   getConversations: (
     page: number = 1,
     limit: number = 10,
     callback: (data: Conversation[]) => void,
   ) => {
-    socketService.on("conversations", callback); // 🔥 listener FIRST (important)
-    socketService.emit("conversations", { page, limit }); // 🔥 THEN emit
+    socketService.off("conversations");
+
+    socketService.on("conversations", (data: Conversation[]) => {
+      callback(data);
+    });
+
+    socketService.emit("conversations", { page, limit });
   },
 
   // =========================================================
@@ -80,9 +89,12 @@ export const chatService = {
     limit: number = 20,
     callback: (data: Message[]) => void,
   ) => {
-    socketService.off("getMessages"); // 🔥 FIX: prevent stacking listeners
-    socketService.on("getMessages", callback); // 🔥 listener first
-    socketService.emit("getMessages", { conversationId, page, limit }); // 🔥 then emit
+    socketService.on("getMessages", callback);
+    socketService.emit("getMessages", {
+      conversationId,
+      page,
+      limit,
+    });
   },
 
   // =========================================================
@@ -98,49 +110,30 @@ export const chatService = {
   },
 
   // =========================================================
-  // 🔥 LISTEN FOR NEW MESSAGE
+  // 🔥 LISTENERS
   // =========================================================
   onMessage: (callback: (message: Message) => void) => {
-    socketService.off("message"); // 🔥 FIX: avoid duplicate firing
     socketService.on("message", callback);
   },
 
-  // =========================================================
-  // 🔥 LISTEN FOR UNREAD UPDATE
-  // =========================================================
   onUnreadUpdate: (
     callback: (data: { conversationId: string; unreadCount: number }) => void,
   ) => {
-    socketService.off("unreadUpdate"); // 🔥 FIX
     socketService.on("unreadUpdate", callback);
   },
 
-  // =========================================================
-  // 🔥 MARK AS READ
-  // =========================================================
+  onNewConversation: (callback: (data: any) => void) => {
+    socketService.on("newConversation", callback);
+  },
+
+  onError: (callback: (error: { message: string }) => void) => {
+    socketService.on("error", callback);
+  },
+
   markAsRead: (conversationId: string) => {
     socketService.emit("markAsRead", { conversationId });
   },
 
-  // =========================================================
-  // 🔥 LISTEN FOR NEW CONVERSATION
-  // =========================================================
-  onNewConversation: (callback: (data: any) => void) => {
-    socketService.off("newConversation"); // 🔥 FIX
-    socketService.on("newConversation", callback);
-  },
-
-  // =========================================================
-  // ⚠ LISTEN FOR ERRORS
-  // =========================================================
-  onError: (callback: (error: { message: string }) => void) => {
-    socketService.off("error"); // 🔥 FIX
-    socketService.on("error", callback);
-  },
-
-  // =========================================================
-  // 🧹 CLEAN UP
-  // =========================================================
   removeListener: (event: string, callback?: (...args: any[]) => void) => {
     socketService.off(event, callback);
   },

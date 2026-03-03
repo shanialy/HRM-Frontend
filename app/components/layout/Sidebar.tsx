@@ -22,10 +22,17 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useDispatch();
-  // ✅ Lazy initialization (NO useEffect → NO warning)
+
+  // ✅ Role from localStorage
   const [role] = useState<Role>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("role") as Role;
+  });
+
+  // ✅ Department from localStorage
+  const [department] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("department");
   });
 
   if (!role) return null;
@@ -33,21 +40,21 @@ export default function Sidebar() {
   /* ================= HELPERS ================= */
   const linkClass = (href: string) =>
     `flex items-center gap-3 px-4 py-2 rounded-lg transition
-     ${pathname === href
-      ? "bg-[#EE2737] text-white"
-      : "text-gray-300 hover:bg-white/10 hover:text-white"
-    }`;
+     ${
+       pathname === href
+         ? "bg-[#EE2737] text-white"
+         : "text-gray-300 hover:bg-white/10 hover:text-white"
+     }`;
 
   /* ================= UI ================= */
   return (
     <aside className="w-64 h-screen bg-gray-900 text-white p-6 flex flex-col overflow-hidden">
-      {/* TOP */}
       <div className="flex-1 overflow-y-auto">
         <h2 className="text-xl font-bold mb-8 capitalize text-[#EE2737]">
           {role} Dashboard
         </h2>
 
-        <nav className="flex flex-col gap-2">{/* ... nav links ... */}
+        <nav className="flex flex-col gap-2">
           {/* CLIENT */}
           {role === "client" && (
             <>
@@ -88,26 +95,33 @@ export default function Sidebar() {
                 Home
               </Link>
 
-              <Link
-                href="/dashboard/employe-dashboard/clients"
-                className={linkClass("/dashboard/employe-dashboard/clients")}
-              >
-                <Users size={18} />
-                Clients
-              </Link>
+              {/* 🔥 Clients visible ONLY for SALES */}
+              {department === "SALES" && (
+                <Link
+                  href="/dashboard/employe-dashboard/clients"
+                  className={linkClass(
+                    "/dashboard/employe-dashboard/clients"
+                  )}
+                >
+                  <Users size={18} />
+                  Clients
+                </Link>
+              )}
 
               <Link
                 href="/dashboard/employe-dashboard/attendence"
-                className={linkClass("/dashboard/employe-dashboard/attendence")}
+                className={linkClass(
+                  "/dashboard/employe-dashboard/attendence"
+                )}
               >
                 <ClipboardCheck size={18} />
                 Attendance
               </Link>
 
               <Link
-                href="/dashboard/employe-dashboard/client-and-employees-list"
+                href="/dashboard/conversation-list/chat-list"
                 className={linkClass(
-                  "/dashboard/employe-dashboard/client-and-employees-list",
+                  "/dashboard/conversation-list/chat-list"
                 )}
               >
                 <MessageSquare size={18} />
@@ -138,7 +152,7 @@ export default function Sidebar() {
               <Link
                 href="/dashboard/admin-dashboard/employes-list"
                 className={linkClass(
-                  "/dashboard/admin-dashboard/employes-list",
+                  "/dashboard/admin-dashboard/employes-list"
                 )}
               >
                 <Users size={18} />
@@ -148,7 +162,7 @@ export default function Sidebar() {
               <Link
                 href="/dashboard/admin-dashboard/employees-attendence"
                 className={linkClass(
-                  "/dashboard/admin-dashboard/employees-attendence",
+                  "/dashboard/admin-dashboard/employees-attendence"
                 )}
               >
                 <ClipboardCheck size={18} />
@@ -157,7 +171,9 @@ export default function Sidebar() {
 
               <Link
                 href="/dashboard/conversation-list/chat-list"
-                className={linkClass("/dashboard/conversation-list/chat-list")}
+                className={linkClass(
+                  "/dashboard/conversation-list/chat-list"
+                )}
               >
                 <MessageSquare size={18} />
                 Chat
@@ -179,15 +195,7 @@ export default function Sidebar() {
       <div className="mt-4 flex-shrink-0">
         <button
           onClick={() => {
-            // ✅ Redux clear
             dispatch(logout());
-
-            // ✅ localStorage clear (token + user + role)
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            localStorage.removeItem("role");
-
-            // ✅ redirect to login
             localStorage.clear();
             router.push("/auth/login");
           }}
@@ -199,7 +207,6 @@ export default function Sidebar() {
           Logout
         </button>
       </div>
-
     </aside>
   );
 }

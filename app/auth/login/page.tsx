@@ -142,6 +142,9 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(user));
 
       localStorage.setItem("role", role);
+   // 🔥 Decode token to get department
+const decoded = JSON.parse(atob(token.split(".")[1]));
+localStorage.setItem("department", decoded.department);
 
       // redirect
       if (role === "admin") {

@@ -1,14 +1,18 @@
 "use client";
 
-import Sidebar from "@/app/components/layout/Sidebar";
+import dynamic from "next/dynamic";
 import { getRequest } from "@/app/services/api";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { navigateToChat } from "@/app/utills/chatNavigation";
 import { chatService, Conversation } from "@/app/services/chat.service";
+import socketService from "@/app/services/socket.service";
 import { useAppSelector } from "@/app/dashboard/redux/hooks";
 
-/* ================= TYPES ================= */
+const Sidebar = dynamic(
+  () => import("@/app/components/layout/Sidebar"),
+  { ssr: false }
+);
 
 type User = {
   id: string;
@@ -32,16 +36,28 @@ type ClientApi = {
 export default function SelectChatUserPage() {
   const router = useRouter();
   const currentUser = useAppSelector((state) => state.auth.user);
+  const token = useAppSelector((state) => state.auth.token);
 
   const [searchEmp, setSearchEmp] = useState("");
   const [searchClient, setSearchClient] = useState("");
-
   const [clientsData, setClientsData] = useState<ClientApi[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [searchedEmployees, setSearchedEmployees] = useState<User[]>([]); // 🔥 ADDED
+  const [searchedEmployees, setSearchedEmployees] = useState<User[]>([]);
+  const [department, setDepartment] = useState<string | null>(null);
 
-  /* ================= FETCH DATA ================= */
+  // 🔹 Decode token safely
+  useEffect(() => {
+    if (!token) return;
 
+    try {
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      setDepartment(decoded.department);
+    } catch (error) {
+      console.error("Token decode error:", error);
+    }
+  }, [token]);
+
+  // 🔹 Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -60,18 +76,22 @@ export default function SelectChatUserPage() {
 
     fetchData();
 
-    chatService.getConversations(1, 100, (data) => {
-      setConversations(data);
-    });
+    if (!token) return;
+
+    const timeout = setTimeout(() => {
+      chatService.getConversations(1, 100, (data) => {
+        setConversations(data);
+      });
+    }, 150);
 
     return () => {
+      clearTimeout(timeout);
       chatService.removeListener("conversations");
-      chatService.removeListener("searchUsers"); // 🔥 ADDED CLEANUP
+      chatService.removeListener("searchUsers");
     };
-  }, []);
+  }, [token]);
 
-  /* ================= ACTIVE CHAT EMPLOYEES ================= */
-
+  // 🔹 Active Employees
   const activeChatEmployees: User[] = useMemo(() => {
     if (!currentUser) return [];
 
@@ -92,8 +112,7 @@ export default function SelectChatUserPage() {
     );
   }, [conversations, currentUser]);
 
-  /* ================= CLIENTS ================= */
-
+  // 🔹 Clients
   const clients: User[] = useMemo(
     () =>
       clientsData
@@ -113,9 +132,6 @@ export default function SelectChatUserPage() {
     navigateToChat(user.id, router);
   };
 
-  /* ================= UI ================= */
-
-  // 🔥 UPDATED: decide which employees to show
   const employeesToShow =
     searchEmp.trim() !== "" ? searchedEmployees : activeChatEmployees;
 
@@ -123,84 +139,68 @@ export default function SelectChatUserPage() {
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
 
-      <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* LEFT BOX – EMPLOYEES */}
+      <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        {/* FIRST BOX */}
+        <div className="bg-gray-900/70 rounded-xl border border-white/10 flex flex-col">
+          <div className="p-4 border-b border-white/10">
+            <h2 className="font-semibold mb-2">Conversations</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {conversations.length === 0 ? (
+              <div className="p-4 text-center text-gray-400">
+                No conversations found
+              </div>
+            ) : (
+              conversations.map((conv) => {
+                const otherUser = conv.participants.find(
+                  (p) => p._id !== currentUser?._id
+                );
+                if (!otherUser) return null;
+
+                return (
+                  <div
+                    key={conv._id}
+                    onClick={() => navigateToChat(otherUser._id, router)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5"
+                  >
+                    <img
+                      src={
+                        otherUser.profilePicture ||
+                        "https://randomuser.me/api/portraits/men/32.jpg"
+                      }
+                      className="w-9 h-9 rounded-full object-cover"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium">
+                        {otherUser.firstName} {otherUser.lastName}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {conv.lastMessage || "No messages yet"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* SECOND BOX */}
         <div className="bg-gray-900/70 rounded-xl border border-white/10 flex flex-col">
           <div className="p-4 border-b border-white/10">
             <h2 className="font-semibold mb-2">
               Employees (Search or Active Chats)
             </h2>
-
             <input
               placeholder="Search employee..."
               value={searchEmp}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSearchEmp(value);
-
-                if (!value.trim()) {
-                  setSearchedEmployees([]);
-                  return;
-                }
-
-                // 🔥 ADDED: SOCKET SEARCH CALL
-                chatService.searchUsers(value, (data) => {
-                  const formatted = data.map((emp) => ({
-                    id: emp._id,
-                    name: `${emp.firstName} ${emp.lastName}`,
-                    role: "employee" as const,
-                    avatar:
-                      emp.profilePicture ||
-                      "https://randomuser.me/api/portraits/men/32.jpg",
-                  }));
-
-                  setSearchedEmployees(formatted);
-                });
-              }}
+              onChange={(e) => setSearchEmp(e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 rounded"
             />
           </div>
-
           <div className="flex-1 overflow-y-auto">
-            {employeesToShow.length === 0 ? (
-              <div className="p-4 text-center text-gray-400">
-                No employees found
-              </div>
-            ) : (
-              employeesToShow.map((user) => (
-                <div
-                  key={user.id}
-                  onClick={() => goToConversation(user)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5"
-                >
-                  <img
-                    src={user.avatar}
-                    className="w-9 h-9 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-xs text-gray-400">Employee</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT BOX – CLIENTS */}
-        <div className="bg-gray-900/70 rounded-xl border border-white/10 flex flex-col">
-          <div className="p-4 border-b border-white/10">
-            <h2 className="font-semibold mb-2">Clients</h2>
-            <input
-              placeholder="Search client..."
-              value={searchClient}
-              onChange={(e) => setSearchClient(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 rounded"
-            />
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {clients.map((user) => (
+            {employeesToShow.map((user) => (
               <div
                 key={user.id}
                 onClick={() => goToConversation(user)}
@@ -212,12 +212,46 @@ export default function SelectChatUserPage() {
                 />
                 <div>
                   <p className="font-medium">{user.name}</p>
-                  <p className="text-xs text-gray-400">Client</p>
+                  <p className="text-xs text-gray-400">Employee</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* THIRD BOX - Only SALES */}
+        {department === "SALES" && (
+          <div className="bg-gray-900/70 rounded-xl border border-white/10 flex flex-col">
+            <div className="p-4 border-b border-white/10">
+              <h2 className="font-semibold mb-2">Clients</h2>
+              <input
+                placeholder="Search client..."
+                value={searchClient}
+                onChange={(e) => setSearchClient(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-800 rounded"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {clients.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => goToConversation(user)}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5"
+                >
+                  <img
+                    src={user.avatar}
+                    className="w-9 h-9 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-medium">{user.name}</p>
+                    <p className="text-xs text-gray-400">Client</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

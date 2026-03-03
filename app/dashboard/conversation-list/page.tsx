@@ -1,9 +1,8 @@
 "use client";
 
 import Sidebar from "@/app/components/layout/Sidebar";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { chatService, Message, Conversation } from "@/app/services/chat.service";
 import { useAppSelector } from "@/app/dashboard/redux/hooks";
 
@@ -18,22 +17,34 @@ export default function ConversationPage() {
   const [input, setInput] = useState("");
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch conversation details and messages
+  // ================= FETCH DATA =================
   useEffect(() => {
     if (!chatId) {
       router.push("/dashboard/conversation-list/chat-list");
       return;
     }
 
-    // Fetch messages
-    chatService.getMessages(chatId, 1, 50, (data) => {
-      setMessages(data.reverse()); // Reverse to show oldest first
-      setLoading(false);
-    });
+    if (!user) return; // wait until redux ready
 
-    // Fetch conversation details
+    setLoading(true);
+
+    // ✅ Fetch Messages
+    // ✅ Fetch Messages
+chatService.getMessages(chatId, 1, 50, (data) => {
+  setMessages(
+    (data || []).sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() -
+        new Date(b.createdAt).getTime()
+    )
+  );
+  setLoading(false);
+});
+
+    // ✅ Fetch Conversation Details
     chatService.getConversations(1, 100, (conversations) => {
       const currentConv = conversations.find((c) => c._id === chatId);
       if (currentConv) {
@@ -41,10 +52,10 @@ export default function ConversationPage() {
       }
     });
 
-    // Mark as read
+    // ✅ Mark as Read
     chatService.markAsRead(chatId);
 
-    // Listen for new messages
+    // ================= REALTIME =================
     const handleNewMessage = (message: Message) => {
       if (message.conversation === chatId) {
         setMessages((prev) => [...prev, message]);
@@ -54,20 +65,17 @@ export default function ConversationPage() {
 
     chatService.onMessage(handleNewMessage);
 
-    // Listen for errors
     chatService.onError((error) => {
       console.error("Chat error:", error.message);
-      alert(error.message);
     });
 
     return () => {
       chatService.removeListener("message", handleNewMessage);
-      chatService.removeListener("getMessages");
       chatService.removeListener("error");
     };
-  }, [chatId, router]);
+  }, [chatId, user, router]);
 
-  // Auto scroll to bottom
+  // ================= AUTO SCROLL =================
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -107,7 +115,9 @@ export default function ConversationPage() {
         <div className="h-14 px-6 flex items-center justify-between border-b border-white/10 bg-gray-900/80 flex-shrink-0">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push("/dashboard/conversation-list/chat-list")}
+              onClick={() =>
+                router.push("/dashboard/conversation-list/chat-list")
+              }
               className="text-gray-400 hover:text-white transition"
             >
               ← Back
@@ -137,7 +147,9 @@ export default function ConversationPage() {
         {/* MESSAGES */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4">
           {loading ? (
-            <div className="text-center text-gray-400">Loading messages...</div>
+            <div className="text-center text-gray-400">
+              Loading messages...
+            </div>
           ) : messages.length === 0 ? (
             <div className="text-center text-gray-400">
               No messages yet. Start the conversation!
@@ -145,11 +157,13 @@ export default function ConversationPage() {
           ) : (
             messages.map((msg) => {
               const isMe = msg.sender._id === user?._id;
+
               return (
                 <div
                   key={msg._id}
-                  className={`max-w-[70%] px-4 py-2 rounded-lg text-sm ${isMe ? "ml-auto bg-[#EE2737]" : "bg-gray-800"
-                    }`}
+                  className={`max-w-[70%] px-4 py-2 rounded-lg text-sm ${
+                    isMe ? "ml-auto bg-[#EE2737]" : "bg-gray-800"
+                  }`}
                 >
                   {!isMe && (
                     <p className="text-xs text-gray-300 mb-1">
@@ -167,7 +181,7 @@ export default function ConversationPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* INPUT - FIXED AT BOTTOM */}
+        {/* INPUT */}
         <div className="p-4 border-t border-white/10 bg-gray-900/80 flex gap-3 flex-shrink-0">
           <input
             value={input}

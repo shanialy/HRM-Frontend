@@ -4,6 +4,10 @@ class SocketService {
   private socket: Socket | null = null;
   private static instance: SocketService;
 
+  private isConnected = false;
+  private emitQueue: Array<{ event: string; data: any }> = [];
+  private readyCallbacks: Array<() => void> = [];
+
   private constructor() {}
 
   static getInstance(): SocketService {
@@ -14,23 +18,38 @@ class SocketService {
   }
 
   connect(token: string) {
-    if (this.socket?.connected) return;
+    if (this.socket) return;
 
     this.socket = io("http://localhost:7000", {
       auth: { token },
-      transports: ["websocket", "polling"],
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
 
     this.socket.on("connect", () => {
       console.log("✅ Socket connected:", this.socket?.id);
+      this.isConnected = true;
+
+      // 🔥 Flush queued emits
+      this.emitQueue.forEach(({ event, data }) => {
+        this.socket?.emit(event, data);
+      });
+      this.emitQueue = [];
+
+      // 🔥 Fire ready callbacks
+      this.readyCallbacks.forEach((cb) => cb());
+      this.readyCallbacks = [];
     });
 
     this.socket.on("disconnect", () => {
       console.log("❌ Socket disconnected");
+      this.isConnected = false;
     });
 
-    this.socket.on("error", (error: any) => {
-      console.error("Socket error:", error);
+    this.socket.on("connect_error", (err) => {
+      console.log("❌ Socket connect error:", err.message);
     });
   }
 
@@ -38,6 +57,8 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+      this.isConnected = false;
+      this.readyCallbacks = [];
     }
   }
 
@@ -45,25 +66,29 @@ class SocketService {
     return this.socket;
   }
 
-  // Emit events (🔥 FIX: wait until socket is connected)
+  // 🔥 NEW: Wait until socket fully ready
+  onReady(callback: () => void) {
+    if (this.isConnected) {
+      callback();
+    } else {
+      this.readyCallbacks.push(callback);
+    }
+  }
+
   emit(event: string, data: any) {
     if (!this.socket) return;
 
-    if (this.socket.connected) {
+    if (this.isConnected) {
       this.socket.emit(event, data);
     } else {
-      // 🔥 IMPORTANT FIX: wait for connection before emitting
-      this.socket.once("connect", () => {
-        this.socket?.emit(event, data);
-      });
+      this.emitQueue.push({ event, data });
     }
   }
-  // Listen to events
+
   on(event: string, callback: (...args: any[]) => void) {
     this.socket?.on(event, callback);
   }
 
-  // Remove listener
   off(event: string, callback?: (...args: any[]) => void) {
     this.socket?.off(event, callback);
   }
