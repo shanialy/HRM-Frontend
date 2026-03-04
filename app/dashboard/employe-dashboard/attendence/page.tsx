@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
 import { useRouter } from "next/navigation";
-import { postRequest, getRequest } from "@/app/services/api";
+import { postRequest } from "@/app/services/api";
 
 type AttendanceApiResponse = {
   status: number;
@@ -21,137 +21,78 @@ export default function AttendancePage() {
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Auto select today's date on page load
+  // Default leave date = today
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
     setSelectedDate(today);
   }, []);
 
-  // ✅ Fetch attendance whenever selectedDate changes
-  useEffect(() => {
-    if (!selectedDate) return;
+  // ================= CHECK IN =================
+  const handleCheckIn = async () => {
+    try {
+      setLoading(true);
 
-    const fetchAttendanceByDate = async () => {
-      try {
-        const selected = new Date(selectedDate);
-        const month = selected.getMonth() + 1;
-        const year = selected.getFullYear();
+      const now = new Date();
 
-        const res = await getRequest<AttendanceApiResponse>(
-          `attendance/attendance?month=${month}&year=${year}`
-        );
-console.log("FULL RESPONSE:", res.data); 
-console.log("INNER DATA:", res.data.data);
-      const records = res.data?.data?.attendance || [];
+      const payload = {
+        type: "CHECK_IN",
+        dateTime: now.toISOString(),
+      };
 
-        const matched = records.find((item: any) => {
-          const dbDate = new Date(item.date);
+      const res = await postRequest<AttendanceApiResponse>(
+        "attendance/attendance",
+        payload
+      );
 
-          return (
-            dbDate.getFullYear() === selected.getFullYear() &&
-            dbDate.getMonth() === selected.getMonth() &&
-            dbDate.getDate() === selected.getDate()
-          );
-        });
+      setCheckInTime(
+        now.toLocaleTimeString("en-PK", {
+          timeZone: "Asia/Karachi",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
 
-        if (matched?.time?.checkIn) {
-          setCheckInTime(
-            new Date(matched.time.checkIn).toLocaleTimeString()
-          );
-        } else {
-          setCheckInTime(null);
-        }
-
-        if (matched?.time?.checkOut) {
-          setCheckOutTime(
-            new Date(matched.time.checkOut).toLocaleTimeString()
-          );
-        } else {
-          setCheckOutTime(null);
-        }
-
-      } catch (error) {
-        console.log("Attendance fetch error");
-        setCheckInTime(null);
-        setCheckOutTime(null);
-      }
-    };
-
-    fetchAttendanceByDate();
-  }, [selectedDate]);
-// ================= CHECK IN =================
-const handleCheckIn = async () => {
-  try {
-    if (!selectedDate) {
-      alert("Please select a date first");
-      return;
+      alert(res.data.message);
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Failed to check in");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setLoading(true);
+  // ================= CHECK OUT =================
+  const handleCheckOut = async () => {
+    try {
+      setLoading(true);
 
-    const now = new Date();
+      const now = new Date();
 
-    const payload = {
-      type: "CHECK_IN",
-      dateTime: now.toISOString(), // store in UTC
-    };
+      const payload = {
+        type: "CHECK_OUT",
+        dateTime: now.toISOString(),
+        notes: "Checked out from system",
+      };
 
-    const res = await postRequest<AttendanceApiResponse>(
-      "attendance/attendance",
-      payload
-    );
+      const res = await postRequest<AttendanceApiResponse>(
+        "attendance/attendance",
+        payload
+      );
 
-    // ✅ Force Pakistan Time display
-    setCheckInTime(
-      now.toLocaleTimeString("en-PK", {
-        timeZone: "Asia/Karachi",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    );
+      setCheckOutTime(
+        now.toLocaleTimeString("en-PK", {
+          timeZone: "Asia/Karachi",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
 
-    alert(res.data.message);
-  } catch (error: any) {
-    alert(error?.response?.data?.message || "Failed to check in");
-  } finally {
-    setLoading(false);
-  }
-};
-
-// ================= CHECK OUT =================
-const handleCheckOut = async () => {
-  try {
-    setLoading(true);
-
-    const now = new Date();
-
-    const payload = {
-      type: "CHECK_OUT",
-      dateTime: now.toISOString(), // store in UTC
-      notes: "Checked out from system",
-    };
-
-    const res = await postRequest<AttendanceApiResponse>(
-      "attendance/attendance",
-      payload
-    );
-
-    // ✅ Force Pakistan Time display
-    setCheckOutTime(
-      now.toLocaleTimeString("en-PK", {
-        timeZone: "Asia/Karachi",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    );
-
-    alert(res.data.message);
-  } catch (error: any) {
-    alert(error?.response?.data?.message || "Failed to check out");
-  } finally {
-    setLoading(false);
-  }
-};
+      alert(res.data.message);
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Failed to check out");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ================= APPLY LEAVE =================
   const handleApplyLeave = async () => {
@@ -218,17 +159,10 @@ const handleCheckOut = async () => {
               Employee Attendance
             </h2>
 
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none"
-            />
-
             <div className="flex flex-col gap-4 mt-2">
               <button
                 onClick={handleCheckIn}
-                disabled={!selectedDate || !!checkInTime || loading}
+                disabled={!!checkInTime || loading}
                 className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
               >
                 {checkInTime
@@ -256,6 +190,13 @@ const handleCheckOut = async () => {
             <h3 className="text-lg font-semibold text-[#EE2737]">
               Apply Leave
             </h3>
+
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none"
+            />
 
             <textarea
               placeholder="Enter leave reason (required)"

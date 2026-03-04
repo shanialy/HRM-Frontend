@@ -123,7 +123,9 @@ export default function AttendancePage() {
       const attendanceMap: Record<string, number> = {};
 
       allAttendanceRecords.forEach((item) => {
-        if (!item.isLeave) {
+        if (!item.isLeave &&
+  item.time?.checkIn &&
+  item.time?.checkOut) {
           const userId = item.user._id;
           attendanceMap[userId] =
             (attendanceMap[userId] || 0) + 1;
