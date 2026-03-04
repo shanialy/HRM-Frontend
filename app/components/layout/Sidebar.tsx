@@ -169,6 +169,17 @@ export default function Sidebar() {
                 Attendance
               </Link>
 
+              {/* ✅ NEW ADDED - Attendance Requests */}
+              <Link
+                href="/dashboard/admin-dashboard/attendance-requests"
+                className={linkClass(
+                  "/dashboard/admin-dashboard/attendance-requests"
+                )}
+              >
+                <ClipboardCheck size={18} />
+                Attendance Requests
+              </Link>
+
               <Link
                 href="/dashboard/conversation-list/chat-list"
                 className={linkClass(

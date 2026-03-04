@@ -50,6 +50,7 @@ export default function AttendancePage() {
   const router = useRouter();
 
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("February");
   const [year, setYear] = useState(2026);
@@ -185,10 +186,10 @@ export default function AttendancePage() {
   // ================= UI =================
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+    <div className="h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-y-auto">
 
         <div className="h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
           <h1 className="text-lg font-semibold mx-auto">Attendance</h1>
