@@ -4,7 +4,7 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { getRequest, patchRequest } from "@/app/services/api";
+import { getRequest } from "@/app/services/api";
 
 // Month names
 const months = [
@@ -12,7 +12,6 @@ const months = [
   "July","August","September","October","November","December",
 ];
 
-// Types
 interface AttendanceAPI {
   _id: string;
   user: {
@@ -30,7 +29,6 @@ interface AttendanceAPI {
 
 interface AttendanceRow {
   id: string;
-  isLeave: boolean;
   date: string;
   checkIn: string;
   checkOut: string;
@@ -49,11 +47,6 @@ export default function EmployeeAttendanceDetail() {
   const [employeeName, setEmployeeName] = useState("");
   const [employeeEmail, setEmployeeEmail] = useState("");
 
-const approveRejectLeave = async (id: string, status: string) => {
-  return await patchRequest(`attendance/attendance/leave/${id}`, { status });
-};
-
-  // Fetch Function (reuse for refresh)
   const fetchAttendance = async () => {
     if (!employeeId) return;
 
@@ -61,46 +54,53 @@ const approveRejectLeave = async (id: string, status: string) => {
       setLoading(true);
       const monthIndex = months.indexOf(month) + 1;
 
-      const res = await getRequest<{
-        status: number;
-        success: boolean;
-        message: string;
-        data: { attendance: AttendanceAPI[] };
-      }>(
-        `attendance/attendance/admin?month=${monthIndex}&year=${year}&employeeId=${employeeId}`,
+      const res = await getRequest<any>(
+        `attendance/attendance/admin?month=${monthIndex}&year=${year}&employeeId=${employeeId}`
       );
 
       if (res.data.success) {
-        const rows = (res.data.data.attendance || []).map((item) => ({
-          id: item._id,
-          isLeave: item.isLeave,
-          date: new Date(item.date).toLocaleDateString("en-US", {
-            day: "2-digit",
-            month: "short",
-          }),
-          checkIn: item.time?.checkIn
-            ? new Date(item.time.checkIn).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "-",
-          checkOut: item.time?.checkOut
-            ? new Date(item.time.checkOut).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "-",
-          status: item.isLeave
-            ? item.status?.toUpperCase() || "PENDING"
-            : "PRESENT",
-          notes: item.notes || "-",
-        }));
+
+        const rows = (res.data.data.attendance || [])
+
+          // ✅ Leave records remove
+          .filter((item: AttendanceAPI) => !item.isLeave)
+
+          .map((item: AttendanceAPI) => ({
+            id: item._id,
+            date: new Date(item.date).toLocaleDateString("en-US", {
+              day: "2-digit",
+              month: "short",
+            }),
+
+            checkIn: item.time?.checkIn
+              ? new Date(item.time.checkIn).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-",
+
+            checkOut: item.time?.checkOut
+              ? new Date(item.time.checkOut).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-",
+
+            status:
+              item.time?.checkIn && !item.time?.checkOut
+                ? "CHECK IN"
+                : item.time?.checkIn && item.time?.checkOut
+                ? "PRESENT"
+                : "ABSENT",
+
+            notes: item.notes || "-",
+          }));
 
         setAttendanceData(rows);
 
         if (res.data.data.attendance.length > 0) {
           setEmployeeName(
-            `${res.data.data.attendance[0].user.firstName} ${res.data.data.attendance[0].user.lastName}`,
+            `${res.data.data.attendance[0].user.firstName} ${res.data.data.attendance[0].user.lastName}`
           );
           setEmployeeEmail(res.data.data.attendance[0].user.email);
         }
@@ -112,17 +112,6 @@ const approveRejectLeave = async (id: string, status: string) => {
       setAttendanceData([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Approve/Reject Handler
-  const handleLeaveAction = async (id: string, status: string) => {
-    try {
-      console.log("CLICKED:", id, status); // 👈 ye add karo
-      await approveRejectLeave(id, status);
-      await fetchAttendance(); // refresh
-    } catch (err) {
-      console.error("Leave update failed:", err);
     }
   };
 
@@ -152,14 +141,14 @@ const approveRejectLeave = async (id: string, status: string) => {
           </div>
         </div>
 
-        {/* MONTH & YEAR FILTER (RESTORED) */}
+        {/* MONTH & YEAR FILTER */}
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="flex flex-col">
             <label className="text-xs text-gray-400 mb-1">Month</label>
             <select
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
             >
               {months.map((m) => (
                 <option key={m} value={m}>
@@ -174,7 +163,7 @@ const approveRejectLeave = async (id: string, status: string) => {
             <select
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
             >
               {[2024, 2025, 2026, 2027].map((y) => (
                 <option key={y} value={y}>
@@ -195,19 +184,19 @@ const approveRejectLeave = async (id: string, status: string) => {
                 <th className="px-5 py-4 text-center">Check Out</th>
                 <th className="px-5 py-4 text-center">Status</th>
                 <th className="px-5 py-4 text-center">Notes</th>
-                <th className="px-5 py-4 text-center">Action</th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-400">
+                  <td colSpan={5} className="text-center py-4 text-gray-400">
                     Loading...
                   </td>
                 </tr>
               ) : attendanceData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-400">
+                  <td colSpan={5} className="text-center py-4 text-gray-400">
                     No records found
                   </td>
                 </tr>
@@ -218,44 +207,11 @@ const approveRejectLeave = async (id: string, status: string) => {
                     <td className="px-5 py-4 text-center">{row.checkIn}</td>
                     <td className="px-5 py-4 text-center">{row.checkOut}</td>
 
-                    <td className="px-5 py-4 text-center">
-                      <span
-                        className={
-                          row.status === "APPROVED"
-                            ? "text-green-400"
-                            : row.status === "REJECTED"
-                            ? "text-red-400"
-                            : "text-yellow-400"
-                        }
-                      >
-                        {row.status}
-                      </span>
+                    <td className="px-5 py-4 text-center text-yellow-400">
+                      {row.status}
                     </td>
 
                     <td className="px-5 py-4 text-center">{row.notes}</td>
-
-                    <td className="px-5 py-4 text-center">
-                      {row.isLeave && row.status === "PENDING" && (
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            onClick={() =>
-                              handleLeaveAction(row.id, "APPROVED")
-                            }
-                            className="bg-green-600 px-3 py-1 rounded text-xs"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleLeaveAction(row.id, "REJECTED")
-                            }
-                            className="bg-red-600 px-3 py-1 rounded text-xs"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))
               )}

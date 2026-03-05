@@ -181,14 +181,26 @@ export default function Sidebar() {
               </Link>
 
               <Link
+  href="/dashboard/admin-dashboard/leaves"
+  className={linkClass(
+    "/dashboard/admin-dashboard/leaves"
+  )}
+>
+  <ClipboardCheck size={18} />
+  Leaves
+</Link>
+
+              <Link
                 href="/dashboard/conversation-list/chat-list"
                 className={linkClass(
                   "/dashboard/conversation-list/chat-list"
                 )}
               >
                 <MessageSquare size={18} />
+                
                 Chat
               </Link>
+
 
               <Link
                 href="/dashboard/settings"

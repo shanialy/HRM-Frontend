@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
 import { useRouter } from "next/navigation";
-import { postRequest } from "@/app/services/api";
+import { postRequest, getRequest } from "@/app/services/api";
 
 type AttendanceApiResponse = {
   status: number;
@@ -21,16 +21,43 @@ export default function AttendancePage() {
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // ================= ATTENDANCE REQUEST STATES =================
   const [requestType, setRequestType] = useState("CHECK_IN");
   const [requestDate, setRequestDate] = useState("");
   const [requestTime, setRequestTime] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
 
-  // Default leave date = today
+  const fetchTodayAttendance = async () => {
+    try {
+      const res = await getRequest<AttendanceApiResponse>(
+        "attendance/attendance/today"
+      );
+
+      const attendance = res?.data?.data;
+      
+
+      if (!attendance) return;
+
+      if (attendance.time?.checkIn) {
+        setCheckInTime(attendance.time.checkIn);
+      }
+
+      if (attendance.time?.checkOut) {
+        setCheckOutTime(attendance.time.checkOut);
+      }
+    } catch (error) {
+      console.log("No attendance today");
+    }
+  };
+
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
     setSelectedDate(today);
+    fetchTodayAttendance();
+    const interval = setInterval(() => {
+    fetchTodayAttendance();
+  }, 60000); // every 1 minute
+
+  return () => clearInterval(interval);
   }, []);
 
   // ================= CHECK IN =================
@@ -50,13 +77,9 @@ export default function AttendancePage() {
         payload
       );
 
-      setCheckInTime(
-        now.toLocaleTimeString("en-PK", {
-          timeZone: "Asia/Karachi",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
+      // ✅ CHANGE: ISO store
+      setCheckInTime(now.toISOString());
+      await fetchTodayAttendance();
 
       alert(res.data.message);
     } catch (error: any) {
@@ -84,23 +107,19 @@ export default function AttendancePage() {
         payload
       );
 
-      setCheckOutTime(
-        now.toLocaleTimeString("en-PK", {
-          timeZone: "Asia/Karachi",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
+      // ✅ CHANGE: ISO store
+      setCheckOutTime(now.toISOString());
+      await fetchTodayAttendance();
 
       alert(res.data.message);
     } catch (error: any) {
+      
       alert(error?.response?.data?.message || "Failed to check out");
     } finally {
       setLoading(false);
     }
   };
 
-  // ================= APPLY LEAVE =================
   const handleApplyLeave = async () => {
     try {
       if (!selectedDate) {
@@ -134,7 +153,6 @@ export default function AttendancePage() {
     }
   };
 
-  // ================= ATTENDANCE REQUEST =================
   const handleSubmitAttendanceRequest = async () => {
     try {
       if (!requestDate || !requestTime || !requestNotes.trim()) {
@@ -174,8 +192,6 @@ export default function AttendancePage() {
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
 
-      {/* ================= SIDEBAR FIX ================= */}
-      {/* ✅ Sidebar ko sticky banaya taake logout bottom par rahe */}
       <div className="sticky top-0 h-screen">
         <Sidebar />
       </div>
@@ -201,11 +217,8 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* ================= MAIN ================= */}
-
         <main className="flex-1 flex items-center justify-center p-6">
 
-          {/* ✅ WIDTH INCREASED */}
           <div className="w-full max-w-xl p-10 rounded-2xl bg-gray-900/70 border border-white/10 shadow-2xl flex flex-col gap-6">
 
             <h2 className="text-2xl font-bold text-center text-[#EE2737]">
@@ -213,13 +226,21 @@ export default function AttendancePage() {
             </h2>
 
             <div className="flex flex-col gap-4 mt-2">
+
               <button
                 onClick={handleCheckIn}
                 disabled={!!checkInTime || loading}
                 className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
               >
                 {checkInTime
-                  ? `Checked In at ${checkInTime}`
+                  ? `Checked In at ${new Date(checkInTime).toLocaleTimeString(
+                      "en-PK",
+                      {
+                        timeZone: "Asia/Karachi",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                    )}`
                   : loading
                   ? "Processing..."
                   : "Check In"}
@@ -231,11 +252,18 @@ export default function AttendancePage() {
                 className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
               >
                 {checkOutTime
-                  ? `Checked Out at ${checkOutTime}`
+                  ? `Checked Out at ${new Date(
+                      checkOutTime
+                    ).toLocaleTimeString("en-PK", {
+                      timeZone: "Asia/Karachi",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
                   : loading
                   ? "Processing..."
                   : "Check Out"}
               </button>
+
             </div>
 
             <div className="border-t border-white/10 my-4"></div>

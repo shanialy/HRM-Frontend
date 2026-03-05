@@ -33,6 +33,7 @@ interface AttendanceRow {
   email: string;
   present: number;
   absent: number;
+  leave: number;
 }
 
 // ================= CONSTANTS =================
@@ -70,7 +71,7 @@ export default function AttendancePage() {
     try {
       setLoading(true);
 
-      // ✅ 1. Fetch ALL employees (no pagination)
+      // ✅ 1. Fetch ALL employees
       const employeesRes = await getRequest<{
         data: { employees: User[] };
       }>(
@@ -79,7 +80,7 @@ export default function AttendancePage() {
 
       const allEmployees = employeesRes.data.data.employees || [];
 
-      // ✅ 2. Fetch ALL attendance pages (backend pagination safe)
+      // ✅ 2. Fetch ALL attendance pages
       let allAttendanceRecords: AttendanceAPI[] = [];
       let currentPage = 1;
       let totalAttendancePages = 1;
@@ -120,29 +121,45 @@ export default function AttendancePage() {
         year
       );
 
-      // ✅ 4. Build attendance map
+      // ✅ 4. Build attendance + leave maps
       const attendanceMap: Record<string, number> = {};
+      const leaveMap: Record<string, number> = {};
 
       allAttendanceRecords.forEach((item) => {
-        if (!item.isLeave &&
-  item.time?.checkIn &&
-  item.time?.checkOut) {
-          const userId = item.user._id;
+
+        const userId = item.user._id;
+
+        // ✅ PRESENT
+        if (
+          !item.isLeave &&
+          item.time?.checkIn &&
+          item.time?.checkOut
+        ) {
           attendanceMap[userId] =
             (attendanceMap[userId] || 0) + 1;
         }
+
+        // ✅ LEAVE
+        if (item.isLeave && item.status === "APPROVED") {
+          leaveMap[userId] =
+            (leaveMap[userId] || 0) + 1;
+        }
+
       });
 
       // ✅ 5. Build final summary rows
       const rows: AttendanceRow[] = allEmployees.map((emp) => {
+
         const present = attendanceMap[emp._id] || 0;
+        const leave = leaveMap[emp._id] || 0;
 
         return {
           id: emp._id,
           name: `${emp.firstName} ${emp.lastName}`,
           email: emp.email,
           present,
-          absent: totalDays - present,
+          leave,
+          absent: totalDays - present - leave,
         };
       });
 
@@ -241,6 +258,7 @@ export default function AttendancePage() {
                   <th className="px-5 py-4 text-left">Name</th>
                   <th className="px-5 py-4 text-left">Email</th>
                   <th className="px-5 py-4 text-center">Present</th>
+                  <th className="px-5 py-4 text-center">Leave</th>
                   <th className="px-5 py-4 text-center">Absent</th>
                 </tr>
               </thead>
@@ -248,13 +266,13 @@ export default function AttendancePage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-6 text-center text-gray-400">
+                    <td colSpan={5} className="px-5 py-6 text-center text-gray-400">
                       Loading...
                     </td>
                   </tr>
                 ) : paginatedAttendance.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-6 text-center text-gray-400">
+                    <td colSpan={5} className="px-5 py-6 text-center text-gray-400">
                       No records found
                     </td>
                   </tr>
@@ -271,12 +289,19 @@ export default function AttendancePage() {
                     >
                       <td className="px-5 py-4 font-medium">{row.name}</td>
                       <td className="px-5 py-4 text-gray-300">{row.email}</td>
+
                       <td className="px-5 py-4 text-green-400 text-center">
                         {row.present}
                       </td>
+
+                      <td className="px-5 py-4 text-yellow-400 text-center">
+                        {row.leave}
+                      </td>
+
                       <td className="px-5 py-4 text-red-400 text-center">
                         {row.absent}
                       </td>
+
                     </tr>
                   ))
                 )}
