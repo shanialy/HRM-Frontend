@@ -2,7 +2,7 @@
 
 import Sidebar from "@/app/components/layout/Sidebar";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getRequest } from "@/app/services/api";
 
@@ -36,7 +36,7 @@ interface AttendanceRow {
   notes: string;
 }
 
-export default function EmployeeAttendanceDetail() {
+function EmployeeAttendanceContent() {
   const searchParams = useSearchParams();
   const employeeId = searchParams.get("employeeId");
 
@@ -62,7 +62,6 @@ export default function EmployeeAttendanceDetail() {
 
         const rows = (res.data.data.attendance || [])
 
-          // ✅ Leave records remove
           .filter((item: AttendanceAPI) => !item.isLeave)
 
           .map((item: AttendanceAPI) => ({
@@ -124,7 +123,6 @@ export default function EmployeeAttendanceDetail() {
       <Sidebar />
 
       <div className="flex-1 p-6">
-        {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
           <Image
             src="/avatar.png"
@@ -141,7 +139,6 @@ export default function EmployeeAttendanceDetail() {
           </div>
         </div>
 
-        {/* MONTH & YEAR FILTER */}
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="flex flex-col">
             <label className="text-xs text-gray-400 mb-1">Month</label>
@@ -174,7 +171,6 @@ export default function EmployeeAttendanceDetail() {
           </div>
         </div>
 
-        {/* TABLE */}
         <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-800 text-gray-300">
@@ -206,11 +202,9 @@ export default function EmployeeAttendanceDetail() {
                     <td className="px-5 py-4">{row.date}</td>
                     <td className="px-5 py-4 text-center">{row.checkIn}</td>
                     <td className="px-5 py-4 text-center">{row.checkOut}</td>
-
                     <td className="px-5 py-4 text-center text-yellow-400">
                       {row.status}
                     </td>
-
                     <td className="px-5 py-4 text-center">{row.notes}</td>
                   </tr>
                 ))
@@ -220,5 +214,13 @@ export default function EmployeeAttendanceDetail() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EmployeeAttendanceDetail() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EmployeeAttendanceContent />
+    </Suspense>
   );
 }

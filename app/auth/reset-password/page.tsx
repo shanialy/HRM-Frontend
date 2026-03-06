@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { postRequest } from "@/app/services/api";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
@@ -50,7 +50,6 @@ export default function ResetPasswordPage() {
                 newPassword,
             });
 
-            // alert("Password reset successfully!");
             router.push("/auth/login");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Failed to reset password");
@@ -151,4 +150,12 @@ export default function ResetPasswordPage() {
             </div>
         </main>
     );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
 }

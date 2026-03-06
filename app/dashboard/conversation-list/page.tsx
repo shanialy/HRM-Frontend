@@ -2,13 +2,12 @@
 
 import Sidebar from "@/app/components/layout/Sidebar";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { chatService, Message, Conversation } from "@/app/services/chat.service";
 import { useAppSelector } from "@/app/dashboard/redux/hooks";
-// ⭐ STEP 1: import socket service
 import socketService from "@/app/services/socket.service";
 
-export default function ConversationPage() {
+function ConversationContent() {
   const searchParams = useSearchParams();
   const chatId = searchParams.get("chatId");
   const router = useRouter();
@@ -29,12 +28,43 @@ export default function ConversationPage() {
       return;
     }
 
-    if (!user) return; // wait until redux ready
-   // ⭐ STEP 2
-const socket = socketService.getSocket?.();
+    if (!user) return;
 
-if (!socket?.connected) {
-  socket?.once("connect", () => {
+    const socket = socketService.getSocket?.();
+
+    if (!socket?.connected) {
+      socket?.once("connect", () => {
+        chatService.getMessages(chatId, 1, 50, (data) => {
+          setMessages(
+            (data || []).sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+            )
+          );
+          setLoading(false);
+        });
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    const handleSocketConnect = () => {
+      chatService.getMessages(chatId, 1, 50, (data) => {
+        setMessages(
+          (data || []).sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() -
+              new Date(b.createdAt).getTime()
+          )
+        );
+        setLoading(false);
+      });
+    };
+
+    socket?.on("connect", handleSocketConnect);
+
     chatService.getMessages(chatId, 1, 50, (data) => {
       setMessages(
         (data || []).sort(
@@ -45,42 +75,7 @@ if (!socket?.connected) {
       );
       setLoading(false);
     });
-  });
-  return;
-}
 
-    setLoading(true);
-
-    // ⭐ STEP 3: reload messages when socket reconnects
-const handleSocketConnect = () => {
-  chatService.getMessages(chatId, 1, 50, (data) => {
-    setMessages(
-      (data || []).sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() -
-          new Date(b.createdAt).getTime()
-      )
-    );
-    setLoading(false);
-  });
-};
-
-socket?.on("connect", handleSocketConnect);
-
-    // ✅ Fetch Messages
-    // ✅ Fetch Messages
-chatService.getMessages(chatId, 1, 50, (data) => {
-  setMessages(
-    (data || []).sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() -
-        new Date(b.createdAt).getTime()
-    )
-  );
-  setLoading(false);
-});
-
-    // ✅ Fetch Conversation Details
     chatService.getConversations(1, 100, (conversations) => {
       const currentConv = conversations.find((c) => c._id === chatId);
       if (currentConv) {
@@ -88,10 +83,8 @@ chatService.getMessages(chatId, 1, 50, (data) => {
       }
     });
 
-    // ✅ Mark as Read
     chatService.markAsRead(chatId);
 
-    // ================= REALTIME =================
     const handleNewMessage = (message: Message) => {
       if (message.conversation === chatId) {
         setMessages((prev) => [...prev, message]);
@@ -108,8 +101,7 @@ chatService.getMessages(chatId, 1, 50, (data) => {
     return () => {
       chatService.removeListener("message", handleNewMessage);
       chatService.removeListener("error");
-       // ⭐ STEP 4: remove socket reconnect listener
-  socket?.off("connect", handleSocketConnect);
+      socket?.off("connect", handleSocketConnect);
     };
   }, [chatId, user, router]);
 
@@ -237,5 +229,13 @@ chatService.getMessages(chatId, 1, 50, (data) => {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConversationPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ConversationContent />
+    </Suspense>
   );
 }

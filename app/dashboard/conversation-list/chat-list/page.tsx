@@ -17,7 +17,7 @@ const PAGE_SIZE = 6;
 export default function ChatListPage() {
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
-  console.log("USER DATA:", user); 
+ 
   const token = useAppSelector((state) => state.auth.token);
 
   const [chats, setChats] = useState<Conversation[]>([]);

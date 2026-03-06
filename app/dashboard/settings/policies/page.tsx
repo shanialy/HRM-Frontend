@@ -1,9 +1,10 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
 
-export default function PoliciesPage() {
+function PoliciesContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const type = searchParams.get("type");
@@ -28,22 +29,6 @@ export default function PoliciesPage() {
                          text-lg font-semibold tracking-wide">
                         Settings
                     </h1>
-                    {/* <button
-                        onClick={() => router.back()}
-                        className="text-sm text-gray-300
-           px-3 py-1.5
-           border border-white/10
-           rounded-lg
-           hover:text-white hover:bg-white/10
-           transition"
-                    >
-                        ← Back
-                    </button> */}
-
-                    {/* <h1 className="absolute left-1/2 -translate-x-1/2
-                         text-lg font-semibold tracking-wide">
-                        {titleMap[type] || "Policy"} */}
-                    {/* </h1> */}
                 </div>
 
                 {/* CONTENT */}
@@ -140,6 +125,14 @@ export default function PoliciesPage() {
                     </div>
                 </main>
             </div>
-        </div >
+        </div>
     );
+}
+
+export default function PoliciesPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PoliciesContent />
+    </Suspense>
+  );
 }
