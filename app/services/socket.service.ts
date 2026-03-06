@@ -20,7 +20,8 @@ class SocketService {
   connect(token: string) {
     if (this.socket) return;
 
-    this.socket = io("https://wst2pk24-7000.inc1.devtunnels.ms", {
+    this.socket = io("https://d15mne01ku2os0.cloudfront.net", {
+      // "https://wst2pk24-7000.inc1.devtunnels.ms", {
       auth: { token },
       transports: ["websocket"],
       reconnection: true,

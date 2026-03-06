@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 
 const api: AxiosInstance = axios.create({
   // baseURL: "http://localhost:7000/api/v1/",
-  baseURL: "https://wst2pk24-7000.inc1.devtunnels.ms/api/v1/",
+  baseURL: "https://d15mne01ku2os0.cloudfront.net",
   headers: {
     "Content-Type": "application/json",
   },
