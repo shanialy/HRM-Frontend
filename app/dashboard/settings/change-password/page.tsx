@@ -39,7 +39,7 @@ export default function ChangePasswordPage() {
                 newPassword,
             });
 
-            alert("Password changed successfully!");
+            // alert("Password changed successfully!");
             router.push("/dashboard/settings");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Failed to change password");

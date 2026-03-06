@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
                 newPassword,
             });
 
-            alert("Password reset successfully!");
+            // alert("Password reset successfully!");
             router.push("/auth/login");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Failed to reset password");

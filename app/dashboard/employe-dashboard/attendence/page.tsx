@@ -81,9 +81,9 @@ export default function AttendancePage() {
       setCheckInTime(now.toISOString());
       await fetchTodayAttendance();
 
-      alert(res.data.message);
+      // alert(res.data.message);
     } catch (error: any) {
-      alert(error?.response?.data?.message || "Failed to check in");
+      // alert(error?.response?.data?.message || "Failed to check in");
     } finally {
       setLoading(false);
     }
@@ -111,10 +111,10 @@ export default function AttendancePage() {
       setCheckOutTime(now.toISOString());
       await fetchTodayAttendance();
 
-      alert(res.data.message);
+      // alert(res.data.message);
     } catch (error: any) {
       
-      alert(error?.response?.data?.message || "Failed to check out");
+      // alert(error?.response?.data?.message || "Failed to check out");
     } finally {
       setLoading(false);
     }
@@ -123,12 +123,12 @@ export default function AttendancePage() {
   const handleApplyLeave = async () => {
     try {
       if (!selectedDate) {
-        alert("Please select a leave date");
+        // alert("Please select a leave date");
         return;
       }
 
       if (!leaveNotes.trim()) {
-        alert("Leave notes are required");
+        // alert("Leave notes are required");
         return;
       }
 
@@ -144,10 +144,10 @@ export default function AttendancePage() {
         payload
       );
 
-      alert(res.data.message);
+      // alert(res.data.message);
       setLeaveNotes("");
     } catch (error: any) {
-      alert(error?.response?.data?.message || "Failed to apply leave");
+      // alert(error?.response?.data?.message || "Failed to apply leave");
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ export default function AttendancePage() {
   const handleSubmitAttendanceRequest = async () => {
     try {
       if (!requestDate || !requestTime || !requestNotes.trim()) {
-        alert("All fields are required");
+        // alert("All fields are required");
         return;
       }
 
@@ -176,14 +176,14 @@ export default function AttendancePage() {
         payload
       );
 
-      alert(res.data.message);
+      // alert(res.data.message);
 
       setRequestType("CHECK_IN");
       setRequestDate("");
       setRequestTime("");
       setRequestNotes("");
     } catch (error: any) {
-      alert(error?.response?.data?.message || "Failed to submit request");
+      // alert(error?.response?.data?.message || "Failed to submit request");
     } finally {
       setLoading(false);
     }

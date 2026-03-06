@@ -4,6 +4,7 @@ import axios, {
   AxiosRequestConfig,
   AxiosResponse,
 } from "axios";
+import toast from "react-hot-toast";
 
 const api: AxiosInstance = axios.create({
   baseURL: "http://localhost:7000/api/v1/",
@@ -30,6 +31,29 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error),
+);
+
+/* ================= RESPONSE INTERCEPTOR ================= */
+
+/* ================= RESPONSE INTERCEPTOR ================= */
+
+api.interceptors.response.use(
+  (response) => {
+    const message = response?.data?.message;
+
+    if (message) {
+      toast.success(message);
+    }
+
+    return response;
+  },
+  (error) => {
+    const message = error?.response?.data?.message || "Something went wrong";
+
+    toast.error(message);
+
+    return Promise.reject(error);
+  },
 );
 
 /* ================= REQUEST HELPERS ================= */

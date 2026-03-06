@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       setLoading(true);
       await postRequest("authorization/forgot-password", { email });
 
-      alert("OTP sent to your email!");
+      // alert("OTP sent to your email!");
       // Navigate to reset password page with email
       router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`);
     } catch (err: any) {

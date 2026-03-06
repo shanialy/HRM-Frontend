@@ -138,7 +138,7 @@ export default function SettingsPage() {
                                 <button
                                     onClick={() => {
                                         setShowDialog(false);
-                                        alert("Account deleted (connect API)");
+                                        // alert("Account deleted (connect API)");
                                     }}
                                     className="px-4 py-2 rounded-lg
                              bg-red-600 hover:bg-red-700 transition"

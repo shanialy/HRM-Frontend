@@ -151,7 +151,7 @@ const handleDelete = async (id: string) => {
     setSuccessMessage("Employee Deleted Successfully ✅"); // ✅ ADD THIS
   } catch (error) {
     console.error("Delete Error:", error);
-    alert("Failed to delete employee.");
+    // alert("Failed to delete employee.");
   }
 };
 
@@ -340,7 +340,7 @@ const handleDelete = async (id: string) => {
                   setOpen(false);
                 } catch (error) {
                   console.error("Employee Save Error:", error);
-                  alert("Failed to save employee. Check console for details.");
+                  // alert("Failed to save employee. Check console for details.");
                 } finally {
                   setSubmitting(false);
                 }

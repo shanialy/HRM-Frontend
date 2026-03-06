@@ -93,7 +93,7 @@ export default function ClientsListPage() {
       !form.address ||
       !form.phone
     ) {
-      alert("All fields are required");
+      // alert("All fields are required");
       return;
     }
 
