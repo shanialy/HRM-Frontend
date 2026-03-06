@@ -127,7 +127,13 @@ export default function EmployeesListPage() {
   const employeeValidationSchema = Yup.object({
     firstName: Yup.string().required("First name is required"),
     lastName: Yup.string().required("Last name is required"),
-    email: Yup.string().email("Invalid email").required("Email is required"),
+    email: Yup.string()
+    .email("Invalid email")
+    .matches(
+      /^[a-zA-Z0-9._%+-]+@tecksolutionhub\.com$/,
+      "Email must be a @tecksolutionhub.com address"
+    )
+    .required("Email is required"),
    password: Yup.string().notRequired(),
     phone: Yup.string().required("Phone is required"),
     address: Yup.string().required("Address is required"),
@@ -229,7 +235,7 @@ const handleDelete = async (id: string) => {
                       <td className="px-4 py-3">{emp.designation}</td>
                       <td className="px-4 py-3">{emp.department}</td>
                       <td className="px-4 py-3 text-green-400">
-                        ${emp.salary}
+                        {emp.salary}
                       </td>
                       <td className="px-4 py-3 flex gap-3">
                         <button
@@ -290,7 +296,7 @@ const handleDelete = async (id: string) => {
       {/* ADD / EDIT MODAL */}
       {open && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-xl w-full max-w-md">
+          <div className="bg-gray-900 p-6 rounded-xl w-full max-w-md max-h-[90vh] flex flex-col">
             <Formik<EmployeeFormValues>
               initialValues={{
                 firstName: form.firstName ?? "",
@@ -302,8 +308,8 @@ const handleDelete = async (id: string) => {
                 designation: form.designation ?? "",
                 department: form.department ?? "",
                 userType: form.userType ?? "",
-                salary: form.salary ?? 0,
-                targetAmount: form.targetAmount ?? 0,
+                salary: form.salary,
+                targetAmount: form.targetAmount,
               }}
               validationSchema={employeeValidationSchema}
               enableReinitialize
@@ -347,7 +353,7 @@ const handleDelete = async (id: string) => {
               }}
             >
               {({ isSubmitting, errors, touched }) => (
-                <Form className="space-y-3">
+                <Form className="space-y-3 overflow-y-auto pr-2">
                   <div>
                     <Field
                       name="firstName"
@@ -371,7 +377,7 @@ const handleDelete = async (id: string) => {
                   <div>
                     <Field
                       name="email"
-                      placeholder="Email"
+                      placeholder="Email (example@tecksolutionhub.com)"
                       className="w-full px-4 py-2 bg-gray-800 rounded"
                     />
                     {errors.email && touched.email && (
