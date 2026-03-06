@@ -68,11 +68,15 @@ export default function ChatListPage() {
   };
 
   // ================= FETCH WHEN SOCKET READY =================
-  useEffect(() => {
-    if (!token || !user) return;
+ useEffect(() => {
+  if (!token || !user) return;
 
+  const tryFetch = () => {
     const socket = socketService.getSocket();
-    if (!socket) return;
+    if (!socket) {
+      setTimeout(tryFetch, 500); // ⭐ wait until socket ready
+      return;
+    }
 
     const fetchConversations = () => {
       setLoading(true);
@@ -88,7 +92,11 @@ export default function ChatListPage() {
     } else {
       socket.once("connect", fetchConversations);
     }
-  }, [token, user, page]);
+  };
+
+  tryFetch();
+
+}, [token, user, page]);
 
   // ================= REALTIME LISTENERS =================
   useEffect(() => {
