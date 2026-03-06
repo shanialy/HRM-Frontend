@@ -53,8 +53,15 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [month, setMonth] = useState("February");
-  const [year, setYear] = useState(2026);
+
+
+  const [month, setMonth] = useState(
+   months[new Date().getMonth()]
+ );
+   const [year, setYear] = useState(
+   new Date().getFullYear())
+
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -85,6 +92,13 @@ export default function AttendancePage() {
       let currentPage = 1;
       let totalAttendancePages = 1;
 
+      console.log(
+"FETCHING ATTENDANCE:",
+months.indexOf(month) + 1,
+year,
+currentPage
+);
+
       do {
         const res = await getRequest<{
           status: number;
@@ -100,8 +114,9 @@ export default function AttendancePage() {
           `attendance/attendance/admin?month=${months.indexOf(month) + 1
           }&year=${year}&page=${currentPage}&limit=100`
         );
-
+console.log("ATTENDANCE API RESPONSE", res.data);
         const records = res.data.data.attendance || [];
+        console.log("ATTENDANCE ARRAY", records);
 
         allAttendanceRecords = [
           ...allAttendanceRecords,
@@ -114,18 +129,30 @@ export default function AttendancePage() {
         currentPage++;
 
       } while (currentPage <= totalAttendancePages);
-
+ 
       // ✅ 3. Calculate total days
-      const totalDays = getDaysInMonth(
-        months.indexOf(month) + 1,
-        year
-      );
+      // ✅ 3. Calculate total days
+let totalDays = getDaysInMonth(
+  months.indexOf(month) + 1,
+  year
+);
+
+// current month ka special case
+const today = new Date();
+
+if (
+  year === today.getFullYear() &&
+  months.indexOf(month) === today.getMonth()
+) {
+  totalDays = today.getDate();
+}
 
       // ✅ 4. Build attendance + leave maps
       const attendanceMap: Record<string, number> = {};
       const leaveMap: Record<string, number> = {};
-
+   console.log("ALL ATTENDANCE RECORDS", allAttendanceRecords);
       allAttendanceRecords.forEach((item) => {
+        
 
         const userId = item.user._id;
 

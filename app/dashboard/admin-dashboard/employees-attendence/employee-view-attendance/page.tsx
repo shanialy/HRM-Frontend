@@ -40,8 +40,12 @@ function EmployeeAttendanceContent() {
   const searchParams = useSearchParams();
   const employeeId = searchParams.get("employeeId");
 
-  const [month, setMonth] = useState("February");
-  const [year, setYear] = useState(2026);
+  const [month, setMonth] = useState(
+  months[new Date().getMonth()]
+);
+  const [year, setYear] = useState(
+  new Date().getFullYear()
+);
   const [attendanceData, setAttendanceData] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [employeeName, setEmployeeName] = useState("");
@@ -62,39 +66,43 @@ function EmployeeAttendanceContent() {
 
         const rows = (res.data.data.attendance || [])
 
-          .filter((item: AttendanceAPI) => !item.isLeave)
+         
 
           .map((item: AttendanceAPI) => ({
-            id: item._id,
-            date: new Date(item.date).toLocaleDateString("en-US", {
-              day: "2-digit",
-              month: "short",
-            }),
+  id: item._id,
+  date: new Date(item.date).toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+  }),
 
-            checkIn: item.time?.checkIn
-              ? new Date(item.time.checkIn).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "-",
+  checkIn: item.isLeave
+    ? "-"
+    : item.time?.checkIn
+    ? new Date(item.time.checkIn).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-",
 
-            checkOut: item.time?.checkOut
-              ? new Date(item.time.checkOut).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "-",
+  checkOut: item.isLeave
+    ? "-"
+    : item.time?.checkOut
+    ? new Date(item.time.checkOut).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-",
 
-            status:
-              item.time?.checkIn && !item.time?.checkOut
-                ? "CHECK IN"
-                : item.time?.checkIn && item.time?.checkOut
-                ? "PRESENT"
-                : "ABSENT",
+  status: item.isLeave
+    ? "LEAVE"
+    : item.time?.checkIn && !item.time?.checkOut
+    ? "CHECK IN"
+    : item.time?.checkIn && item.time?.checkOut
+    ? "PRESENT"
+    : "ABSENT",
 
-            notes: item.notes || "-",
-          }));
-
+  notes: item.notes || "-",
+}));
         setAttendanceData(rows);
 
         if (res.data.data.attendance.length > 0) {
