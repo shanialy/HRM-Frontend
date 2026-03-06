@@ -17,8 +17,13 @@ export default function AttendancePage() {
 
   const [selectedDate, setSelectedDate] = useState("");
   const [leaveNotes, setLeaveNotes] = useState("");
+
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
+
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
+
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [requestType, setRequestType] = useState("CHECK_IN");
@@ -26,111 +31,110 @@ export default function AttendancePage() {
   const [requestTime, setRequestTime] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
 
+  /* ================= FETCH TODAY ATTENDANCE ================= */
+
   const fetchTodayAttendance = async () => {
     try {
+      setAttendanceLoading(true);
+
       const res = await getRequest<AttendanceApiResponse>(
         "attendance/attendance/today"
       );
 
       const attendance = res?.data?.data;
-      
 
-      if (!attendance) return;
-
-      if (attendance.time?.checkIn) {
-        setCheckInTime(attendance.time.checkIn);
+      if (!attendance) {
+        setCheckInTime(null);
+        setCheckOutTime(null);
+        setHasCheckedIn(false);
+        return;
       }
 
-      if (attendance.time?.checkOut) {
-        setCheckOutTime(attendance.time.checkOut);
+      const checkIn = attendance?.time?.checkIn || null;
+      const checkOut = attendance?.time?.checkOut || null;
+
+      setCheckInTime(checkIn);
+      setCheckOutTime(checkOut);
+
+      if (checkIn && !checkOut) {
+        setHasCheckedIn(true);
+      } else {
+        setHasCheckedIn(false);
       }
     } catch (error) {
-      console.log("No attendance today");
+      console.log("Attendance fetch error", error);
+    } finally {
+      setAttendanceLoading(false);
     }
   };
+
+  /* ================= INITIAL LOAD ================= */
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
     setSelectedDate(today);
-    fetchTodayAttendance();
-    const interval = setInterval(() => {
-    fetchTodayAttendance();
-  }, 60000); // every 1 minute
 
-  return () => clearInterval(interval);
+    fetchTodayAttendance();
+
+    const interval = setInterval(() => {
+      fetchTodayAttendance();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  // ================= CHECK IN =================
+  /* ================= CHECK IN ================= */
+
   const handleCheckIn = async () => {
     try {
       setLoading(true);
 
-      const now = new Date();
-
       const payload = {
         type: "CHECK_IN",
-        dateTime: now.toISOString(),
       };
 
-      const res = await postRequest<AttendanceApiResponse>(
+      await postRequest<AttendanceApiResponse>(
         "attendance/attendance",
         payload
       );
 
-      // ✅ CHANGE: ISO store
-      setCheckInTime(now.toISOString());
       await fetchTodayAttendance();
-
-      // alert(res.data.message);
     } catch (error: any) {
-      // alert(error?.response?.data?.message || "Failed to check in");
+      console.log(error?.response?.data);
     } finally {
       setLoading(false);
     }
   };
 
-  // ================= CHECK OUT =================
+  /* ================= CHECK OUT ================= */
+
   const handleCheckOut = async () => {
     try {
       setLoading(true);
 
-      const now = new Date();
-
       const payload = {
         type: "CHECK_OUT",
-        dateTime: now.toISOString(),
         notes: "Checked out from system",
       };
 
-      const res = await postRequest<AttendanceApiResponse>(
+      await postRequest<AttendanceApiResponse>(
         "attendance/attendance",
         payload
       );
 
-      // ✅ CHANGE: ISO store
-      setCheckOutTime(now.toISOString());
       await fetchTodayAttendance();
-
-      // alert(res.data.message);
     } catch (error: any) {
-      
-      // alert(error?.response?.data?.message || "Failed to check out");
+      console.log(error?.response?.data);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= APPLY LEAVE ================= */
+
   const handleApplyLeave = async () => {
     try {
-      if (!selectedDate) {
-        // alert("Please select a leave date");
-        return;
-      }
-
-      if (!leaveNotes.trim()) {
-        // alert("Leave notes are required");
-        return;
-      }
+      if (!selectedDate || !leaveNotes.trim()) return;
 
       setLoading(true);
 
@@ -139,26 +143,24 @@ export default function AttendancePage() {
         notes: leaveNotes,
       };
 
-      const res = await postRequest<AttendanceApiResponse>(
+      await postRequest<AttendanceApiResponse>(
         "attendance/attendance/leave",
         payload
       );
 
-      // alert(res.data.message);
       setLeaveNotes("");
     } catch (error: any) {
-      // alert(error?.response?.data?.message || "Failed to apply leave");
+      console.log(error?.response?.data);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= ATTENDANCE REQUEST ================= */
+
   const handleSubmitAttendanceRequest = async () => {
     try {
-      if (!requestDate || !requestTime || !requestNotes.trim()) {
-        // alert("All fields are required");
-        return;
-      }
+      if (!requestDate || !requestTime || !requestNotes.trim()) return;
 
       setLoading(true);
 
@@ -171,19 +173,17 @@ export default function AttendancePage() {
         notes: requestNotes,
       };
 
-      const res = await postRequest<AttendanceApiResponse>(
+      await postRequest<AttendanceApiResponse>(
         "attendance/attendance/request",
         payload
       );
-
-      // alert(res.data.message);
 
       setRequestType("CHECK_IN");
       setRequestDate("");
       setRequestTime("");
       setRequestNotes("");
     } catch (error: any) {
-      // alert(error?.response?.data?.message || "Failed to submit request");
+      console.log(error?.response?.data);
     } finally {
       setLoading(false);
     }
@@ -191,13 +191,11 @@ export default function AttendancePage() {
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-
       <div className="sticky top-0 h-screen">
         <Sidebar />
       </div>
 
       <div className="flex-1 flex flex-col">
-
         <div className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10 shadow-md">
           <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
             Attendance
@@ -218,56 +216,54 @@ export default function AttendancePage() {
         </div>
 
         <main className="flex-1 flex items-center justify-center p-6">
-
           <div className="w-full max-w-xl p-10 rounded-2xl bg-gray-900/70 border border-white/10 shadow-2xl flex flex-col gap-6">
-
             <h2 className="text-2xl font-bold text-center text-[#EE2737]">
               Employee Attendance
             </h2>
 
-            <div className="flex flex-col gap-4 mt-2">
-
-              <button
-                onClick={handleCheckIn}
-                disabled={!!checkInTime || loading}
-                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
-              >
-                {checkInTime
-                  ? `Checked In at ${new Date(checkInTime).toLocaleTimeString(
-                      "en-PK",
-                      {
-                        timeZone: "Asia/Karachi",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }
-                    )}`
-                  : loading
-                  ? "Processing..."
-                  : "Check In"}
-              </button>
-
-              <button
-                onClick={handleCheckOut}
-                disabled={!checkInTime || !!checkOutTime || loading}
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
-              >
-                {checkOutTime
-                  ? `Checked Out at ${new Date(
-                      checkOutTime
-                    ).toLocaleTimeString("en-PK", {
+            {/* CHECK IN */}
+            <button
+              onClick={handleCheckIn}
+              disabled={hasCheckedIn || loading || attendanceLoading}
+              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
+            >
+              {checkInTime
+                ? `Checked In at ${new Date(checkInTime).toLocaleTimeString(
+                    "en-PK",
+                    {
                       timeZone: "Asia/Karachi",
                       hour: "2-digit",
                       minute: "2-digit",
-                    })}`
-                  : loading
-                  ? "Processing..."
-                  : "Check Out"}
-              </button>
+                    }
+                  )}`
+                : loading
+                ? "Processing..."
+                : "Check In"}
+            </button>
 
-            </div>
+            {/* CHECK OUT */}
+            <button
+              onClick={handleCheckOut}
+              disabled={!hasCheckedIn || !!checkOutTime || loading}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
+            >
+              {checkOutTime
+                ? `Checked Out at ${new Date(checkOutTime).toLocaleTimeString(
+                    "en-PK",
+                    {
+                      timeZone: "Asia/Karachi",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}`
+                : loading
+                ? "Processing..."
+                : "Check Out"}
+            </button>
 
             <div className="border-t border-white/10 my-4"></div>
 
+            {/* APPLY LEAVE */}
             <h3 className="text-lg font-semibold text-[#EE2737]">
               Apply Leave
             </h3>
@@ -280,7 +276,7 @@ export default function AttendancePage() {
             />
 
             <textarea
-              placeholder="Enter leave reason (required)"
+              placeholder="Enter leave reason"
               value={leaveNotes}
               onChange={(e) => setLeaveNotes(e.target.value)}
               className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none resize-none"
@@ -297,6 +293,7 @@ export default function AttendancePage() {
 
             <div className="border-t border-white/10 my-4"></div>
 
+            {/* REQUEST */}
             <h3 className="text-lg font-semibold text-[#EE2737]">
               Attendance Correction Request
             </h3>
@@ -304,7 +301,7 @@ export default function AttendancePage() {
             <select
               value={requestType}
               onChange={(e) => setRequestType(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none"
+              className="w-full px-4 py-3 rounded-lg bg-white/10"
             >
               <option value="CHECK_IN">Check In</option>
               <option value="CHECK_OUT">Check Out</option>
@@ -314,14 +311,14 @@ export default function AttendancePage() {
               type="date"
               value={requestDate}
               onChange={(e) => setRequestDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none"
+              className="w-full px-4 py-3 rounded-lg bg-white/10"
             />
 
             <input
               type="time"
               value={requestTime}
               onChange={(e) => setRequestTime(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none"
+              className="w-full px-4 py-3 rounded-lg bg-white/10"
             />
 
             <textarea
@@ -329,7 +326,7 @@ export default function AttendancePage() {
               value={requestNotes}
               onChange={(e) => setRequestNotes(e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none resize-none"
+              className="w-full px-4 py-3 rounded-lg bg-white/10 resize-none"
             />
 
             <button
@@ -339,7 +336,6 @@ export default function AttendancePage() {
             >
               {loading ? "Processing..." : "Submit Request"}
             </button>
-
           </div>
         </main>
       </div>
