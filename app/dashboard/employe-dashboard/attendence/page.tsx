@@ -9,7 +9,9 @@ type AttendanceApiResponse = {
   status: number;
   success: boolean;
   message: string;
-  data?: any;
+  data?: {
+    attendance?: any;
+  };
 };
 
 export default function AttendancePage() {
@@ -40,8 +42,11 @@ export default function AttendancePage() {
       const res = await getRequest<AttendanceApiResponse>(
         "attendance/attendance/today"
       );
-
-      const attendance = res?.data?.data;
+      console.log("Today attendance API response:", res);
+const attendance =
+  res?.data?.data?.attendance ??
+  res?.data?.data ??
+  null;
 
       if (!attendance) {
         setCheckInTime(null);
@@ -61,8 +66,8 @@ export default function AttendancePage() {
       } else {
         setHasCheckedIn(false);
       }
-    } catch (error) {
-      console.log("Attendance fetch error", error);
+    } catch (error:any) {
+     console.log("Attendance fetch error:", error?.response?.data || error);
     } finally {
       setAttendanceLoading(false);
     }
