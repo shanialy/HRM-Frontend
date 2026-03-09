@@ -2,7 +2,7 @@
 
 import Sidebar from "@/app/components/layout/Sidebar";
 import Image from "next/image";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense,useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { getRequest } from "@/app/services/api";
 
@@ -50,6 +50,7 @@ function EmployeeAttendanceContent() {
   const [loading, setLoading] = useState(false);
   const [employeeName, setEmployeeName] = useState("");
   const [employeeEmail, setEmployeeEmail] = useState("");
+  const fetchedRef = useRef(false);
 
   const fetchAttendance = async () => {
     if (!employeeId) return;
@@ -123,6 +124,10 @@ function EmployeeAttendanceContent() {
   };
 
   useEffect(() => {
+
+  if (fetchedRef.current) return;
+
+  fetchedRef.current = true;
     fetchAttendance();
   }, [month, year, employeeId]);
 

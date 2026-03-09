@@ -4,6 +4,8 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getRequest } from "@/app/services/api";
+import { useRef } from "react";
+
 
 // ================= TYPES =================
 
@@ -53,6 +55,7 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+ 
 
 
   const [month, setMonth] = useState(
@@ -65,6 +68,7 @@ export default function AttendancePage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const fetchedRef = useRef(false);
 
   // ================= HELPER =================
 
@@ -75,6 +79,7 @@ export default function AttendancePage() {
   // ================= FETCH FUNCTION =================
 
   const fetchAttendance = async () => {
+     console.log("FETCH ATTENDANCE FUNCTION CALLED");
     try {
       setLoading(true);
 
@@ -208,6 +213,9 @@ if (
   };
 
   useEffect(() => {
+     if (fetchedRef.current) return;
+
+  fetchedRef.current = true;
     fetchAttendance();
   }, [month, year, search]);
 
