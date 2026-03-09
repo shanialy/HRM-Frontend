@@ -5,6 +5,8 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import { useRouter } from "next/navigation";
 import { postRequest, getRequest } from "@/app/services/api";
 
+
+
 type AttendanceApiResponse = {
   status: number;
   success: boolean;
@@ -27,6 +29,14 @@ export default function AttendancePage() {
 
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  
+const [employeeLocation, setEmployeeLocation] = useState<{
+  latitude: number;
+  longitude: number;
+} | null>(null);
+
+const [distanceFromOffice, setDistanceFromOffice] = useState<number | null>(null);
 
   const [requestType, setRequestType] = useState("CHECK_IN");
   const [requestDate, setRequestDate] = useState("");
@@ -88,53 +98,129 @@ const attendance =
     return () => clearInterval(interval);
   }, []);
 
-  /* ================= CHECK IN ================= */
+/* ================= CHECK IN ================= */
 
-  const handleCheckIn = async () => {
-    try {
-      setLoading(true);
+const handleCheckIn = async () => {
+  try {
+    setGettingLocation(true); // 🟢 START: show "Fetching location..." while GPS loads
+    setLoading(true);
 
-      const payload = {
-        type: "CHECK_IN",
-      };
+    // 🟢 Get employee current location from browser
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
 
-      await postRequest<AttendanceApiResponse>(
-        "attendance/attendance",
-        payload
-      );
+        setGettingLocation(false); // 🟢 GPS mil gaya, fetching state band
 
-      await fetchTodayAttendance();
-    } catch (error: any) {
-      console.log(error?.response?.data);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        // 🟢 Update employee location for map
+setEmployeeLocation({
+  latitude,
+  longitude,
+});
+// 📏 Calculate distance from office
+const officeLat = 24.832279;
+const officeLng = 67.047424;
 
-  /* ================= CHECK OUT ================= */
+const distance =
+  Math.sqrt(
+    Math.pow(latitude - officeLat, 2) +
+    Math.pow(longitude - officeLng, 2)
+  ) * 111000;
 
-  const handleCheckOut = async () => {
-    try {
-      setLoading(true);
+setDistanceFromOffice(Math.round(distance));
 
-      const payload = {
-        type: "CHECK_OUT",
-        notes: "Checked out from system",
-      };
+        // 🟢 Send location with check-in request
+        const payload = {
+          type: "CHECK_IN",
+          latitude,
+          longitude,
+        };
 
-      await postRequest<AttendanceApiResponse>(
-        "attendance/attendance",
-        payload
-      );
+        await postRequest<AttendanceApiResponse>(
+          "attendance/attendance",
+          payload
+        );
 
-      await fetchTodayAttendance();
-    } catch (error: any) {
-      console.log(error?.response?.data);
-    } finally {
-      setLoading(false);
-    }
-  };
+        await fetchTodayAttendance();
+        setLoading(false);
+      },
+      (error) => {
+        // 🔴 If user denies location
+        console.log("Location error:", error);
+        alert("Please enable location to mark attendance");
 
+        setGettingLocation(false); // 🟢 stop fetching state if location fails
+        setLoading(false);
+      }
+    );
+  } catch (error: any) {
+    console.log(error?.response?.data);
+    setGettingLocation(false); // 🟢 safety: reset location state
+    setLoading(false);
+  }
+};
+
+/* ================= CHECK OUT ================= */
+
+const handleCheckOut = async () => {
+  try {
+    setGettingLocation(true); // 🟢 START: show "Fetching location..." while GPS loads
+    setLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+
+        setGettingLocation(false); // 🟢 GPS mil gaya
+
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        setEmployeeLocation({
+  latitude,
+  longitude,
+});
+
+// 📏 Calculate distance from office
+const officeLat = 24.832279;
+const officeLng = 67.047424;
+
+const distance =
+  Math.sqrt(
+    Math.pow(latitude - officeLat, 2) +
+    Math.pow(longitude - officeLng, 2)
+  ) * 111000;
+
+setDistanceFromOffice(Math.round(distance));
+
+        const payload = {
+          type: "CHECK_OUT",
+          notes: "Checked out from system",
+          latitude,
+          longitude,
+        };
+
+        await postRequest<AttendanceApiResponse>(
+          "attendance/attendance",
+          payload
+        );
+
+        await fetchTodayAttendance();
+        setLoading(false);
+      },
+      (error) => {
+        console.log("Location error:", error);
+        alert("Please enable location to mark attendance");
+
+        setGettingLocation(false); // 🟢 reset location loader
+        setLoading(false);
+      }
+    );
+  } catch (error: any) {
+    console.log(error?.response?.data);
+    setGettingLocation(false); // 🟢 safety reset
+    setLoading(false);
+  }
+};
   /* ================= APPLY LEAVE ================= */
 
   const handleApplyLeave = async () => {
@@ -225,46 +311,74 @@ const attendance =
             <h2 className="text-2xl font-bold text-center text-[#EE2737]">
               Employee Attendance
             </h2>
+{/* 📍 Location / Motivation */}
+<div className="text-center p-3 rounded-lg bg-white/5 border border-white/10">
 
-            {/* CHECK IN */}
-            <button
-              onClick={handleCheckIn}
-              disabled={hasCheckedIn || loading || attendanceLoading}
-              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
-            >
-              {checkInTime
-                ? `Checked In at ${new Date(checkInTime).toLocaleTimeString(
-                    "en-PK",
-                    {
-                      timeZone: "Asia/Karachi",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }
-                  )}`
-                : loading
-                ? "Processing..."
-                : "Check In"}
-            </button>
+  {!employeeLocation ? (
+    <p className="text-gray-300 font-medium">
+      Start your day strong — mark your attendance to begin.
+    </p>
+  ) : (
+    <>
+      <p className="text-sm text-gray-400">Location Status</p>
 
-            {/* CHECK OUT */}
-            <button
-              onClick={handleCheckOut}
-              disabled={!hasCheckedIn || !!checkOutTime || loading}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
-            >
-              {checkOutTime
-                ? `Checked Out at ${new Date(checkOutTime).toLocaleTimeString(
-                    "en-PK",
-                    {
-                      timeZone: "Asia/Karachi",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }
-                  )}`
-                : loading
-                ? "Processing..."
-                : "Check Out"}
-            </button>
+      <p className="text-green-400 font-semibold">
+        Location Verified
+      </p>
+
+      {distanceFromOffice !== null && (
+        <p className="text-gray-300 text-sm mt-1">
+          Distance from Office: {distanceFromOffice} m
+        </p>
+      )}
+    </>
+  )}
+
+</div>
+
+{/* CHECK IN */}
+<button
+  onClick={handleCheckIn}
+  disabled={hasCheckedIn || loading || attendanceLoading||gettingLocation}
+  className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
+>
+  {checkInTime
+    ? `Checked In at ${new Date(checkInTime).toLocaleTimeString(
+        "en-PK",
+        {
+          timeZone: "Asia/Karachi",
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      )}`
+    : gettingLocation // 🟢 NEW: show while GPS location is being fetched
+    ? "Fetching location..."
+    : loading
+    ? "Processing..."
+    : "Check In"}
+</button>
+
+{/* CHECK OUT */}
+<button
+  onClick={handleCheckOut}
+  disabled={!hasCheckedIn || !!checkOutTime || loading||gettingLocation}
+  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
+>
+  {checkOutTime
+    ? `Checked Out at ${new Date(checkOutTime).toLocaleTimeString(
+        "en-PK",
+        {
+          timeZone: "Asia/Karachi",
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      )}`
+    : gettingLocation // 🟢 NEW: show while GPS location is being fetched
+    ? "Fetching location..."
+    : loading
+    ? "Processing..."
+    : "Check Out"}
+</button>
 
             <div className="border-t border-white/10 my-4"></div>
 
