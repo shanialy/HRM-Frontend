@@ -30,7 +30,6 @@ class SocketService {
     });
 
     this.socket.on("connect", () => {
-      console.log("✅ Socket connected:", this.socket?.id);
       this.isConnected = true;
 
       // 🔥 Flush queued emits
@@ -45,13 +44,10 @@ class SocketService {
     });
 
     this.socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
       this.isConnected = false;
     });
 
-    this.socket.on("connect_error", (err) => {
-      console.log("❌ Socket connect error:", err.message);
-    });
+    this.socket.on("connect_error", (err) => {});
   }
 
   disconnect() {

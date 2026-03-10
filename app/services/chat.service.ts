@@ -48,7 +48,6 @@ export const chatService = {
     socketService.off("searchUsers"); // 🔥 important
 
     socketService.on("searchUsers", (data: SearchUser[]) => {
-      console.log("🔥 SEARCH RESULT:", data); // debug
       callback(data);
     });
 

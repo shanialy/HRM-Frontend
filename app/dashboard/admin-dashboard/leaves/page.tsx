@@ -41,7 +41,7 @@ export default function LeavesPage() {
 
       setLeaves(leaveRows);
     } catch (err) {
-      console.error("Failed to fetch leaves:", err);
+     console.error("Failed to fetch leaves:", err);
       setLeaves([]);
     } finally {
       setLoading(false);

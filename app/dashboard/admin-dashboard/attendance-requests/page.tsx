@@ -19,14 +19,13 @@ export default function AttendanceRequestsPage() {
         `attendance/attendance/requests?page=${page}&limit=20`
       );
 
-      console.log(res);
-      console.log(res.data);
+     
 
       setRequests(res.data?.data?.requests || []);
       setTotalPages(res.data?.data?.pagination?.totalPages || 1);
 
     } catch (error) {
-      console.error("Failed to fetch requests", error);
+    console.error("Failed to fetch requests", error);
       setRequests([]);
     } finally {
       setLoading(false);
@@ -38,24 +37,24 @@ export default function AttendanceRequestsPage() {
   }, [page]);
 
   /* ================= APPROVE ================= */
+const approveRequest = async (id: string, time: string) => {
+  try {
+    setLoading(true);
 
-  const approveRequest = async (id: string) => {
-    try {
-      setLoading(true);
+    await patchRequest(`attendance/attendance/request/${id}`, {
+      status: "APPROVED",
+      time: {
+        checkIn: time,
+      },
+    });
 
-      await patchRequest(`attendance/attendance/request/${id}`, {
-        status: "APPROVED",
-      });
-
-      fetchRequests();
-
-    } catch (error) {
-      console.error("Approve failed", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+    fetchRequests();
+  } catch (error: any) {
+    
+  } finally {
+    setLoading(false);
+  }
+};
   /* ================= REJECT ================= */
 
   const rejectRequest = async (id: string) => {
@@ -69,7 +68,7 @@ export default function AttendanceRequestsPage() {
       fetchRequests();
 
     } catch (error) {
-      console.error("Reject failed", error);
+    
     } finally {
       setLoading(false);
     }
@@ -145,19 +144,22 @@ export default function AttendanceRequestsPage() {
                       <td className="px-5 py-4 text-center">
                         <div className="flex justify-center gap-2">
 
-                          <button
-                            onClick={() => approveRequest(req._id)}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded"
-                          >
-                            Approve
-                          </button>
+                         {/* Approve Button */}
+{/* Approve Button */}
+<button
+  onClick={() => approveRequest(req._id, req.time.checkIn || req.time.checkOut)}
+  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded"
+>
+  Approve
+</button>
 
-                          <button
-                            onClick={() => rejectRequest(req._id)}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
-                          >
-                            Reject
-                          </button>
+{/* Reject Button */}
+<button
+  onClick={() => rejectRequest(req._id)}
+  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
+>
+  Reject
+</button>
 
                         </div>
                       </td>

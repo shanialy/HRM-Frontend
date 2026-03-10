@@ -5,8 +5,6 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import { useRouter } from "next/navigation";
 import { postRequest, getRequest } from "@/app/services/api";
 
-
-
 type AttendanceApiResponse = {
   status: number;
   success: boolean;
@@ -25,18 +23,11 @@ export default function AttendancePage() {
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
 
+
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
 
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [gettingLocation, setGettingLocation] = useState(false);
-  
-const [employeeLocation, setEmployeeLocation] = useState<{
-  latitude: number;
-  longitude: number;
-} | null>(null);
-
-const [distanceFromOffice, setDistanceFromOffice] = useState<number | null>(null);
 
   const [requestType, setRequestType] = useState("CHECK_IN");
   const [requestDate, setRequestDate] = useState("");
@@ -45,48 +36,49 @@ const [distanceFromOffice, setDistanceFromOffice] = useState<number | null>(null
 
   /* ================= FETCH TODAY ATTENDANCE ================= */
 
-  const fetchTodayAttendance = async () => {
-    try {
-      setAttendanceLoading(true);
+const fetchTodayAttendance = async () => {
+  try {
+    setAttendanceLoading(true);
 
-      const res = await getRequest<AttendanceApiResponse>(
-        "attendance/attendance/today"
-      );
-      console.log("Today attendance API response:", res);
-const attendance =
-  res?.data?.data?.attendance ??
-  res?.data?.data ??
-  null;
+    const res = await getRequest<AttendanceApiResponse>(
+      "attendance/attendance/today"
+    );
 
-      if (!attendance) {
-        setCheckInTime(null);
-        setCheckOutTime(null);
-        setHasCheckedIn(false);
-        return;
-      }
+    const attendance =
+      res?.data?.data?.attendance ?? res?.data?.data ?? null;
+    
+ 
 
-      const checkIn = attendance?.time?.checkIn || null;
-      const checkOut = attendance?.time?.checkOut || null;
-
-      setCheckInTime(checkIn);
-      setCheckOutTime(checkOut);
-
-      if (checkIn && !checkOut) {
-        setHasCheckedIn(true);
-      } else {
-        setHasCheckedIn(false);
-      }
-    } catch (error:any) {
-     console.log("Attendance fetch error:", error?.response?.data || error);
-    } finally {
-      setAttendanceLoading(false);
+    if (!attendance) {
+      setCheckInTime(null);
+      setCheckOutTime(null);
+      setHasCheckedIn(false);
+      return;
     }
-  };
 
+    const checkIn = attendance?.time?.checkIn ?? null;
+    const checkOut = attendance?.time?.checkOut ?? null;
+     
+
+    setCheckInTime(checkIn);
+    setCheckOutTime(checkOut);
+
+    // ✅ correct state calculation
+    const isCheckedIn = !!checkIn && !checkOut;
+    setHasCheckedIn(isCheckedIn);
+
+  } catch (error: any) {
+   
+  } finally {
+    setAttendanceLoading(false);
+  }
+};
   /* ================= INITIAL LOAD ================= */
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+   const today = new Date().toLocaleDateString("en-CA", {
+  timeZone: "Asia/Karachi",
+});
     setSelectedDate(today);
 
     fetchTodayAttendance();
@@ -98,129 +90,52 @@ const attendance =
     return () => clearInterval(interval);
   }, []);
 
-/* ================= CHECK IN ================= */
+  /* ================= CHECK IN ================= */
 
-const handleCheckIn = async () => {
-  try {
-    setGettingLocation(true); // 🟢 START: show "Fetching location..." while GPS loads
-    setLoading(true);
-
-    // 🟢 Get employee current location from browser
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-
-        setGettingLocation(false); // 🟢 GPS mil gaya, fetching state band
-
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        // 🟢 Update employee location for map
-setEmployeeLocation({
-  latitude,
-  longitude,
-});
-// 📏 Calculate distance from office
-const officeLat = 24.832279;
-const officeLng = 67.047424;
-
-const distance =
-  Math.sqrt(
-    Math.pow(latitude - officeLat, 2) +
-    Math.pow(longitude - officeLng, 2)
-  ) * 111000;
-
-setDistanceFromOffice(Math.round(distance));
-
-        // 🟢 Send location with check-in request
-        const payload = {
-          type: "CHECK_IN",
-          latitude,
-          longitude,
-        };
-
-        await postRequest<AttendanceApiResponse>(
-          "attendance/attendance",
-          payload
-        );
-
-        await fetchTodayAttendance();
-        setLoading(false);
-      },
-      (error) => {
-        // 🔴 If user denies location
-        console.log("Location error:", error);
-        alert("Please enable location to mark attendance");
-
-        setGettingLocation(false); // 🟢 stop fetching state if location fails
-        setLoading(false);
-      }
-    );
-  } catch (error: any) {
-    console.log(error?.response?.data);
-    setGettingLocation(false); // 🟢 safety: reset location state
-    setLoading(false);
-  }
+  const handleCheckIn = async () => {
+    try {
+      setLoading(true);
+const payload = {
+  type: "CHECK_IN",
 };
 
-/* ================= CHECK OUT ================= */
+      await postRequest<AttendanceApiResponse>(
+        "attendance/attendance",
+        payload
+      );
 
-const handleCheckOut = async () => {
-  try {
-    setGettingLocation(true); // 🟢 START: show "Fetching location..." while GPS loads
-    setLoading(true);
+      await fetchTodayAttendance();
+    } catch (error: any) {
+     
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
+  /* ================= CHECK OUT ================= */
 
-        setGettingLocation(false); // 🟢 GPS mil gaya
+  const handleCheckOut = async () => {
+    try {
+      setLoading(true);
 
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        setEmployeeLocation({
-  latitude,
-  longitude,
-});
-
-// 📏 Calculate distance from office
-const officeLat = 24.832279;
-const officeLng = 67.047424;
-
-const distance =
-  Math.sqrt(
-    Math.pow(latitude - officeLat, 2) +
-    Math.pow(longitude - officeLng, 2)
-  ) * 111000;
-
-setDistanceFromOffice(Math.round(distance));
-
-        const payload = {
-          type: "CHECK_OUT",
-          notes: "Checked out from system",
-          latitude,
-          longitude,
-        };
-
-        await postRequest<AttendanceApiResponse>(
-          "attendance/attendance",
-          payload
-        );
-
-        await fetchTodayAttendance();
-        setLoading(false);
-      },
-      (error) => {
-        console.log("Location error:", error);
-        alert("Please enable location to mark attendance");
-
-        setGettingLocation(false); // 🟢 reset location loader
-        setLoading(false);
-      }
-    );
-  } catch (error: any) {
-    console.log(error?.response?.data);
-    setGettingLocation(false); // 🟢 safety reset
-    setLoading(false);
-  }
+      const payload = {
+  type: "CHECK_OUT",
+  notes: "Checked out from system",
 };
+
+      await postRequest<AttendanceApiResponse>(
+        "attendance/attendance",
+        payload
+      );
+
+      await fetchTodayAttendance();
+    } catch (error: any) {
+   
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ================= APPLY LEAVE ================= */
 
   const handleApplyLeave = async () => {
@@ -241,7 +156,7 @@ setDistanceFromOffice(Math.round(distance));
 
       setLeaveNotes("");
     } catch (error: any) {
-      console.log(error?.response?.data);
+      
     } finally {
       setLoading(false);
     }
@@ -274,7 +189,7 @@ setDistanceFromOffice(Math.round(distance));
       setRequestTime("");
       setRequestNotes("");
     } catch (error: any) {
-      console.log(error?.response?.data);
+     
     } finally {
       setLoading(false);
     }
@@ -311,70 +226,29 @@ setDistanceFromOffice(Math.round(distance));
             <h2 className="text-2xl font-bold text-center text-[#EE2737]">
               Employee Attendance
             </h2>
-{/* 📍 Location / Motivation */}
-<div className="text-center p-3 rounded-lg bg-white/5 border border-white/10">
 
-  {!employeeLocation ? (
-    <p className="text-gray-300 font-medium">
-      Start your day strong — mark your attendance to begin.
-    </p>
-  ) : (
-    <>
-      <p className="text-sm text-gray-400">Location Status</p>
-
-      <p className="text-green-400 font-semibold">
-        Location Verified
-      </p>
-
-      {distanceFromOffice !== null && (
-        <p className="text-gray-300 text-sm mt-1">
-          Distance from Office: {distanceFromOffice} m
-        </p>
-      )}
-    </>
-  )}
-
-</div>
-
-{/* CHECK IN */}
+          {/* CHECK IN */}
 <button
   onClick={handleCheckIn}
-  disabled={hasCheckedIn || loading || attendanceLoading||gettingLocation}
+  disabled={!!checkInTime || loading || attendanceLoading}
   className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
 >
   {checkInTime
-    ? `Checked In at ${new Date(checkInTime).toLocaleTimeString(
-        "en-PK",
-        {
-          timeZone: "Asia/Karachi",
-          hour: "2-digit",
-          minute: "2-digit",
-        }
-      )}`
-    : gettingLocation // 🟢 NEW: show while GPS location is being fetched
-    ? "Fetching location..."
+    ? `Checked In at ${checkInTime.split(" ")[1].slice(0,5)}`
     : loading
     ? "Processing..."
     : "Check In"}
 </button>
 
+
 {/* CHECK OUT */}
 <button
   onClick={handleCheckOut}
-  disabled={!hasCheckedIn || !!checkOutTime || loading||gettingLocation}
+  disabled={!hasCheckedIn || loading}
   className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
 >
   {checkOutTime
-    ? `Checked Out at ${new Date(checkOutTime).toLocaleTimeString(
-        "en-PK",
-        {
-          timeZone: "Asia/Karachi",
-          hour: "2-digit",
-          minute: "2-digit",
-        }
-      )}`
-    : gettingLocation // 🟢 NEW: show while GPS location is being fetched
-    ? "Fetching location..."
+    ? `Checked Out at ${checkOutTime.split(" ")[1].slice(0,5)}`
     : loading
     ? "Processing..."
     : "Check Out"}
@@ -460,4 +334,4 @@ setDistanceFromOffice(Math.round(distance));
       </div>
     </div>
   );
-}
+}   

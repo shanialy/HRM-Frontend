@@ -28,11 +28,20 @@ interface AttendanceRow {
 }
 
 export default function ViewMyAttendance() {
-    const [month, setMonth] = useState("February");
-    const [year, setYear] = useState(2026);
-    const [attendanceData, setAttendanceData] = useState<AttendanceRow[]>([]);
-    const [loading, setLoading] = useState(false);
+// current system date le rahe hain
+const currentDate = new Date();
 
+// current month index (0-11)
+const currentMonthIndex = currentDate.getMonth();
+
+// months array se current month ka name nikal rahe hain
+const [month, setMonth] = useState(months[currentMonthIndex]);
+
+// current year automatically set ho jayega
+const [year, setYear] = useState(currentDate.getFullYear());
+
+const [attendanceData, setAttendanceData] = useState<AttendanceRow[]>([]);
+const [loading, setLoading] = useState(false);
     useEffect(() => {
         const fetchAttendance = async () => {
             try {
@@ -52,38 +61,44 @@ export default function ViewMyAttendance() {
                 );
 
                 if (res.data.success) {
-                    const rows = (res.data.data.attendance || []).map((item) => ({
-                        date: new Date(item.date).toLocaleDateString("en-US", {
-                            day: "2-digit",
-                            month: "short",
-                        }),
-                        checkIn: item.time?.checkIn
-                            ? new Date(item.time.checkIn).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })
-                            : "-",
-                        checkOut: item.time?.checkOut
-                            ? new Date(item.time.checkOut).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })
-                            : "-",
-                        status: item.isLeave
-                            ? "Leave"
-                            : item.status
-                                ? item.status.charAt(0).toUpperCase() +
-                                item.status.slice(1).toLowerCase()
-                                : "Present",
-                        notes: item.notes || "-",
-                    }));
+                   const rows = (res.data.data.attendance || []).map((item) => ({
+    date: new Date(item.date).toLocaleDateString("en-US", {
+        day: "2-digit",
+        month: "short",
+    }),
+
+    checkIn: item.time?.checkIn
+        ? new Date(item.time.checkIn).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        })
+        : "-",
+
+    checkOut: item.time?.checkOut
+        ? new Date(item.time.checkOut).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        })
+        : "-",
+
+    // ✅ status logic fix
+    status: item.isLeave
+        ? "Leave" // agar leave true hai
+        : item.time?.checkIn && !item.time?.checkOut
+            ? "CheckIn" // sirf checkin hua hai
+            : item.time?.checkIn && item.time?.checkOut
+                ? "Present" // checkin + checkout dono hain
+                : "-",
+
+    notes: item.notes || "-",
+}));
 
                     setAttendanceData(rows);
                 } else {
                     setAttendanceData([]);
                 }
             } catch (error) {
-                console.error("Fetch Error:", error);
+               
                 setAttendanceData([]);
             } finally {
                 setLoading(false);

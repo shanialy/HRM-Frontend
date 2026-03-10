@@ -187,7 +187,7 @@ export default function Sidebar() {
   )}
 >
   <ClipboardCheck size={18} />
-  Leaves
+  Leave Requests
 </Link>
 
               <Link

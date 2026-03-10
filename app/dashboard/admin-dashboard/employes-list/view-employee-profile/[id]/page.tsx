@@ -60,7 +60,7 @@ export default function EmployeeDetailPage() {
 
   // Fetch employee by ID
   const fetchEmployee = async () => {
-    console.log("FETCH EMPLOYEE CALLED");
+   
     if (!employeeId) return;
     try {
       setLoading(true);

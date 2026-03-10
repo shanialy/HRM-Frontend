@@ -79,7 +79,7 @@ export default function AttendancePage() {
   // ================= FETCH FUNCTION =================
 
   const fetchAttendance = async () => {
-     console.log("FETCH ATTENDANCE FUNCTION CALLED");
+   
     try {
       setLoading(true);
 
@@ -97,12 +97,6 @@ export default function AttendancePage() {
       let currentPage = 1;
       let totalAttendancePages = 1;
 
-      console.log(
-"FETCHING ATTENDANCE:",
-months.indexOf(month) + 1,
-year,
-currentPage
-);
 
       do {
         const res = await getRequest<{
@@ -119,9 +113,9 @@ currentPage
           `attendance/attendance/admin?month=${months.indexOf(month) + 1
           }&year=${year}&page=${currentPage}&limit=100`
         );
-console.log("ATTENDANCE API RESPONSE", res.data);
+
         const records = res.data.data.attendance || [];
-        console.log("ATTENDANCE ARRAY", records);
+       
 
         allAttendanceRecords = [
           ...allAttendanceRecords,
@@ -155,7 +149,7 @@ if (
       // ✅ 4. Build attendance + leave maps
       const attendanceMap: Record<string, number> = {};
       const leaveMap: Record<string, number> = {};
-   console.log("ALL ATTENDANCE RECORDS", allAttendanceRecords);
+  
       allAttendanceRecords.forEach((item) => {
         
 
@@ -204,7 +198,7 @@ if (
       setTotalPages(calculatedTotalPages);
 
     } catch (error) {
-      console.error("Failed to fetch attendance:", error);
+     
       setAttendance([]);
       setTotalPages(1);
     } finally {

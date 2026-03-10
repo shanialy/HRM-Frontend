@@ -103,7 +103,7 @@ export default function EmployeesListPage() {
       setEmployees(res.data.data.employees || []);
       setTotalPages(res.data.data.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Failed to fetch employees:", error);
+   console.error("Failed to fetch employees:", error);
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ const handleDelete = async (id: string) => {
 
     setSuccessMessage("Employee Deleted Successfully ✅"); // ✅ ADD THIS
   } catch (error) {
-    console.error("Delete Error:", error);
+  console.error("Delete Error:", error);
     // alert("Failed to delete employee.");
   }
 };
@@ -345,8 +345,8 @@ const handleDelete = async (id: string) => {
                   setEditId(null);
                   setOpen(false);
                 } catch (error) {
-                  console.error("Employee Save Error:", error);
-                  // alert("Failed to save employee. Check console for details.");
+                 
+                  
                 } finally {
                   setSubmitting(false);
                 }
