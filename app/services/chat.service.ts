@@ -13,6 +13,7 @@ export interface Conversation {
   messageType: string;
   updatedAt?: string;
   unreadCount?: number;
+  unreadCounts?: Record<string, number>;
 }
 
 export interface Message {

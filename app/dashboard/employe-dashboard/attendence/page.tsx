@@ -19,66 +19,28 @@ export default function AttendancePage() {
 
   const [selectedDate, setSelectedDate] = useState("");
   const [leaveNotes, setLeaveNotes] = useState("");
-
-  const [checkInTime, setCheckInTime] = useState<string | null>(null);
-  const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
-
-
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
-
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [requestType, setRequestType] = useState("CHECK_IN");
   const [requestDate, setRequestDate] = useState("");
   const [requestTime, setRequestTime] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
 
-  /* ================= FETCH TODAY ATTENDANCE ================= */
+  const fetchTodayAttendance = async () => {
+    try {
+      setAttendanceLoading(true);
 
-const fetchTodayAttendance = async () => {
-  try {
-    setAttendanceLoading(true);
-
-    const res = await getRequest<AttendanceApiResponse>(
-      "attendance/attendance/today"
-    );
-
-    const attendance =
-      res?.data?.data?.attendance ?? res?.data?.data ?? null;
-    
- 
-
-    if (!attendance) {
-      setCheckInTime(null);
-      setCheckOutTime(null);
-      setHasCheckedIn(false);
-      return;
+      await getRequest<AttendanceApiResponse>("attendance/attendance/today");
+    } catch (error: any) {
+    } finally {
+      setAttendanceLoading(false);
     }
-
-    const checkIn = attendance?.time?.checkIn ?? null;
-    const checkOut = attendance?.time?.checkOut ?? null;
-     
-
-    setCheckInTime(checkIn);
-    setCheckOutTime(checkOut);
-
-    // ✅ correct state calculation
-    const isCheckedIn = !!checkIn && !checkOut;
-    setHasCheckedIn(isCheckedIn);
-
-  } catch (error: any) {
-   
-  } finally {
-    setAttendanceLoading(false);
-  }
-};
-  /* ================= INITIAL LOAD ================= */
+  };
 
   useEffect(() => {
-   const today = new Date().toLocaleDateString("en-CA", {
-  timeZone: "Asia/Karachi",
-});
+    const today = new Date().toLocaleDateString("en-CA", {
+      timeZone: "Asia/Karachi",
+    });
     setSelectedDate(today);
 
     fetchTodayAttendance();
@@ -95,18 +57,17 @@ const fetchTodayAttendance = async () => {
   const handleCheckIn = async () => {
     try {
       setLoading(true);
-const payload = {
-  type: "CHECK_IN",
-};
+      const payload = {
+        type: "CHECK_IN",
+      };
 
       await postRequest<AttendanceApiResponse>(
         "attendance/attendance",
-        payload
+        payload,
       );
 
       await fetchTodayAttendance();
     } catch (error: any) {
-     
     } finally {
       setLoading(false);
     }
@@ -119,18 +80,17 @@ const payload = {
       setLoading(true);
 
       const payload = {
-  type: "CHECK_OUT",
-  notes: "Checked out from system",
-};
+        type: "CHECK_OUT",
+        notes: "Checked out from system",
+      };
 
       await postRequest<AttendanceApiResponse>(
         "attendance/attendance",
-        payload
+        payload,
       );
 
       await fetchTodayAttendance();
     } catch (error: any) {
-   
     } finally {
       setLoading(false);
     }
@@ -151,12 +111,11 @@ const payload = {
 
       await postRequest<AttendanceApiResponse>(
         "attendance/attendance/leave",
-        payload
+        payload,
       );
 
       setLeaveNotes("");
     } catch (error: any) {
-      
     } finally {
       setLoading(false);
     }
@@ -181,7 +140,7 @@ const payload = {
 
       await postRequest<AttendanceApiResponse>(
         "attendance/attendance/request",
-        payload
+        payload,
       );
 
       setRequestType("CHECK_IN");
@@ -189,7 +148,6 @@ const payload = {
       setRequestTime("");
       setRequestNotes("");
     } catch (error: any) {
-     
     } finally {
       setLoading(false);
     }
@@ -211,7 +169,7 @@ const payload = {
             <button
               onClick={() =>
                 router.push(
-                  `/dashboard/employe-dashboard/attendence/view-my-attendence`
+                  `/dashboard/employe-dashboard/attendence/view-my-attendence`,
                 )
               }
               className="px-4 py-2 text-sm rounded-lg bg-[#EE2737] hover:bg-[#d81f2e] transition"
@@ -227,32 +185,21 @@ const payload = {
               Employee Attendance
             </h2>
 
-          {/* CHECK IN */}
-<button
-  onClick={handleCheckIn}
-  disabled={!!checkInTime || loading || attendanceLoading}
-  className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
->
-  {checkInTime
-    ? `Checked In at ${checkInTime.split(" ")[1].slice(0,5)}`
-    : loading
-    ? "Processing..."
-    : "Check In"}
-</button>
+            <button
+              onClick={handleCheckIn}
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
+            >
+              {loading ? "Processing..." : "Check In"}
+            </button>
 
-
-{/* CHECK OUT */}
-<button
-  onClick={handleCheckOut}
-  disabled={!hasCheckedIn || loading}
-  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
->
-  {checkOutTime
-    ? `Checked Out at ${checkOutTime.split(" ")[1].slice(0,5)}`
-    : loading
-    ? "Processing..."
-    : "Check Out"}
-</button>
+            <button
+              onClick={handleCheckOut}
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
+            >
+              {loading ? "Processing..." : "Check Out"}
+            </button>
 
             <div className="border-t border-white/10 my-4"></div>
 
@@ -334,4 +281,4 @@ const payload = {
       </div>
     </div>
   );
-}   
+}
