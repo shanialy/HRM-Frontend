@@ -2,14 +2,24 @@
 
 import Sidebar from "@/app/components/layout/Sidebar";
 import Image from "next/image";
-import { useState, useEffect, Suspense,useRef } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { getRequest } from "@/app/services/api";
 
 // Month names
 const months = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 interface AttendanceAPI {
@@ -40,12 +50,8 @@ function EmployeeAttendanceContent() {
   const searchParams = useSearchParams();
   const employeeId = searchParams.get("employeeId");
 
-  const [month, setMonth] = useState(
-  months[new Date().getMonth()]
-);
-  const [year, setYear] = useState(
-  new Date().getFullYear()
-);
+  const [month, setMonth] = useState(months[new Date().getMonth()]);
+  const [year, setYear] = useState(new Date().getFullYear());
   const [attendanceData, setAttendanceData] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [employeeName, setEmployeeName] = useState("");
@@ -60,55 +66,52 @@ function EmployeeAttendanceContent() {
       const monthIndex = months.indexOf(month) + 1;
 
       const res = await getRequest<any>(
-        `attendance/attendance/admin?month=${monthIndex}&year=${year}&employeeId=${employeeId}`
+        `attendance/attendance/admin?month=${monthIndex}&year=${year}&employeeId=${employeeId}`,
       );
 
       if (res.data.success) {
+        const rows = (res.data.data.attendance || []).map(
+          (item: AttendanceAPI) => ({
+            id: item._id,
+            date: new Date(item.date).toLocaleDateString("en-US", {
+              day: "2-digit",
+              month: "short",
+            }),
 
-        const rows = (res.data.data.attendance || [])
+            checkIn: item.isLeave
+              ? "-"
+              : item.time?.checkIn
+                ? new Date(item.time.checkIn).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "-",
 
-         
+            checkOut: item.isLeave
+              ? "-"
+              : item.time?.checkOut
+                ? new Date(item.time.checkOut).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "-",
 
-          .map((item: AttendanceAPI) => ({
-  id: item._id,
-  date: new Date(item.date).toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-  }),
+            status: item.isLeave
+              ? "LEAVE"
+              : item.time?.checkIn && !item.time?.checkOut
+                ? "CHECK IN"
+                : item.time?.checkIn && item.time?.checkOut
+                  ? "PRESENT"
+                  : "ABSENT",
 
-  checkIn: item.isLeave
-    ? "-"
-    : item.time?.checkIn
-    ? new Date(item.time.checkIn).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "-",
-
-  checkOut: item.isLeave
-    ? "-"
-    : item.time?.checkOut
-    ? new Date(item.time.checkOut).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "-",
-
-  status: item.isLeave
-    ? "LEAVE"
-    : item.time?.checkIn && !item.time?.checkOut
-    ? "CHECK IN"
-    : item.time?.checkIn && item.time?.checkOut
-    ? "PRESENT"
-    : "ABSENT",
-
-  notes: item.notes || "-",
-}));
+            notes: item.notes || "-",
+          }),
+        );
         setAttendanceData(rows);
 
         if (res.data.data.attendance.length > 0) {
           setEmployeeName(
-            `${res.data.data.attendance[0].user.firstName} ${res.data.data.attendance[0].user.lastName}`
+            `${res.data.data.attendance[0].user.firstName} ${res.data.data.attendance[0].user.lastName}`,
           );
           setEmployeeEmail(res.data.data.attendance[0].user.email);
         }
@@ -124,10 +127,9 @@ function EmployeeAttendanceContent() {
   };
 
   useEffect(() => {
+    if (fetchedRef.current) return;
 
-  if (fetchedRef.current) return;
-
-  fetchedRef.current = true;
+    fetchedRef.current = true;
     fetchAttendance();
   }, [month, year, employeeId]);
 
@@ -137,13 +139,15 @@ function EmployeeAttendanceContent() {
 
       <div className="flex-1 p-6">
         <div className="flex items-center gap-4 mb-6">
-          <Image
-            src="/avatar.png"
-            alt="Employee"
-            width={64}
-            height={64}
-            className="rounded-full border border-white/20"
-          />
+          <div className="w-16 h-16 rounded-full bg-gray-200 text-black flex items-center justify-center font-semibold border border-white/20">
+            {employeeName
+              ? employeeName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+              : "E"}
+          </div>
           <div>
             <h1 className="text-xl font-semibold">
               {employeeName || "Employee"}
