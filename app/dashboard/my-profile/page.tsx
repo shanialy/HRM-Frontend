@@ -45,7 +45,7 @@ export default function MyProfilePage() {
     department: "",
     designation: "",
     salary: "0",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
+    image: "https://ui-avatars.com/api/?name=User",
   });
 
   const [form, setForm] = useState<Profile>(profile);
@@ -69,7 +69,7 @@ export default function MyProfilePage() {
           department: "", // API doesn't have department
           designation: user.role,
           salary: user.salary.toString(),
-          image: "https://randomuser.me/api/portraits/men/32.jpg",
+          image: `https://ui-avatars.com/api/?name=${user.lastName}+${user.lastName}`,
         };
 
         setProfile(mappedProfile);
@@ -146,7 +146,7 @@ export default function MyProfilePage() {
             <Detail label="Address" value={profile.address} />
             <Detail label="Department" value={profile.department} />
             <Detail label="Designation" value={profile.designation} />
-            <Detail label="Salary" value={`$${profile.salary}`} />
+            <Detail label="Salary" value={`${profile.salary}`} />
           </div>
         </main>
       </div>

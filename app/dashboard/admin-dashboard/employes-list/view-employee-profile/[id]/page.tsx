@@ -49,18 +49,16 @@ export default function EmployeeDetailPage() {
 
   const filteredClients = useMemo(
     () =>
-      clients.filter(
-        (c) =>
-          `${c.firstName} ${c.lastName} ${c.email}`
-            .toLowerCase()
-            .includes(search.toLowerCase()),
+      clients.filter((c) =>
+        `${c.firstName} ${c.lastName} ${c.email}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
       ),
     [clients, search],
   );
 
   // Fetch employee by ID
   const fetchEmployee = async () => {
-   
     if (!employeeId) return;
     try {
       setLoading(true);
@@ -122,7 +120,7 @@ export default function EmployeeDetailPage() {
                 <img
                   src={
                     employee.image ||
-                    "https://randomuser.me/api/portraits/men/32.jpg"
+                    `https://ui-avatars.com/api/?name=${employee.firstName}+${employee.lastName}`
                   }
                   alt={fullName}
                   className="w-28 h-28 rounded-full border-4 border-white mb-4"
@@ -137,7 +135,7 @@ export default function EmployeeDetailPage() {
                 <p>📞 Phone: {employee.phone || "Not provided"}</p>
                 <p>📍 Address: {employee.address || "Not provided"}</p>
                 <p>🏢 Department: {employee.department || "Not provided"}</p>
-                <p>💰 Salary: ${employee.salary || 0}</p>
+                <p>💰 Salary: {employee.salary || 0}</p>
               </div>
               <div className="mt-6">
                 <Button onClick={startChat} className="w-full">
@@ -173,7 +171,9 @@ export default function EmployeeDetailPage() {
                       </p>
                       <p className="text-sm text-gray-400">{client.email}</p>
                       {client.phone && (
-                        <p className="text-sm text-gray-400">📞 {client.phone}</p>
+                        <p className="text-sm text-gray-400">
+                          📞 {client.phone}
+                        </p>
                       )}
                     </div>
                   ))
@@ -188,7 +188,7 @@ export default function EmployeeDetailPage() {
                 <img
                   src={
                     employee.image ||
-                    "https://randomuser.me/api/portraits/men/32.jpg"
+                    `https://ui-avatars.com/api/?name=${employee.firstName}+${employee.lastName}`
                   }
                   alt={fullName}
                   className="w-28 h-28 rounded-full border-4 border-white mb-4"
@@ -203,7 +203,7 @@ export default function EmployeeDetailPage() {
                 <p>📞 Phone: {employee.phone || "Not provided"}</p>
                 <p>📍 Address: {employee.address || "Not provided"}</p>
                 <p>🏢 Department: {employee.department || "Not provided"}</p>
-                <p>💰 Salary: ${employee.salary || 0}</p>
+                <p>💰 Salary: {employee.salary || 0}</p>
               </div>
               <div className="mt-6">
                 <Button onClick={startChat} className="w-full">
