@@ -30,10 +30,10 @@ export default function EmployeesDashboard() {
           {/* RIGHT PROFILE IMAGE */}
           <div className="w-20 flex justify-end">
             <img
-              src="/profile.jpg"
+              src="https://ui-avatars.com/api/?name=Employee&background=f5f5f5&color=000"
               alt="Profile"
               onClick={() => router.push("/dashboard/my-profile")}
-              className="w-9 h-9 rounded-full object-cover
+              className="w-11 h-11 rounded-full object-cover
                      cursor-pointer border border-white/20
                      hover:scale-105 transition"
             />

@@ -69,7 +69,7 @@ export default function MyProfilePage() {
           department: "", // API doesn't have department
           designation: user.role,
           salary: user.salary.toString(),
-          image: `https://ui-avatars.com/api/?name=${user.lastName}+${user.lastName}`,
+          image: `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}`,
         };
 
         setProfile(mappedProfile);
