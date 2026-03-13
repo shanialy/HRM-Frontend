@@ -79,9 +79,7 @@ export default function DashboardPage() {
             </div>
             {/* Clients */}
             <div
-              onClick={() =>
-                router.push("/dashboard/employe-dashboard/clients")
-              }
+              onClick={() => router.push("/dashboard/admin-dashboard/clients")}
               className="bg-gray-800/80 backdrop-blur-md
         border border-white/10 p-8 rounded-xl shadow-lg
         flex items-center justify-center text-xl font-semibold
@@ -92,7 +90,9 @@ export default function DashboardPage() {
 
             {/* Attendance */}
             <div
-              onClick={() => router.push("/dashboard/attendance")}
+              onClick={() =>
+                router.push("/dashboard/admin-dashboard/employees-attendence")
+              }
               className="bg-gray-800/80 backdrop-blur-md
         border border-white/10 p-8 rounded-xl shadow-lg
         flex items-center justify-center text-xl font-semibold

@@ -30,6 +30,7 @@ type Client = {
   email: string;
   phone?: string;
   address?: string;
+  status?: string;
 };
 
 export default function EmployeeDetailPage() {
@@ -71,7 +72,13 @@ export default function EmployeeDetailPage() {
       }>(`employee/employees/${employeeId}`);
 
       setEmployee(res.data.data.employee);
-      setClients(res.data.data.clients || []);
+      const allClients = res.data.data.clients || [];
+
+      const activeClients = allClients.filter(
+        (c: Client) => c.status !== "INACTIVE",
+      );
+
+      setClients(activeClients);
     } catch (err: unknown) {
       if (err instanceof AxiosError)
         console.error(err.response?.data || err.message);

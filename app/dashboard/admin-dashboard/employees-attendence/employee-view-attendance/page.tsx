@@ -43,6 +43,7 @@ interface AttendanceRow {
   checkIn: string;
   checkOut: string;
   status: string;
+  workingHours: string;
   notes: string;
 }
 
@@ -95,6 +96,26 @@ function EmployeeAttendanceContent() {
                     minute: "2-digit",
                   })
                 : "-",
+            workingHours:
+              item.time?.checkIn && item.time?.checkOut
+                ? (() => {
+                    const start = new Date(item.time.checkIn);
+                    const end = new Date(item.time.checkOut);
+                    if (end < start) {
+                      end.setDate(end.getDate() + 1);
+                    }
+
+                    const diffMs = end.getTime() - start.getTime();
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const minutes = Math.floor(
+                      (diffMs % (1000 * 60 * 60)) / (1000 * 60),
+                    );
+
+                    return `${hours}h ${minutes}m`;
+                  })()
+                : item.time?.checkIn
+                  ? "..."
+                  : "-",
 
             status: item.isLeave
               ? "LEAVE"
@@ -196,6 +217,7 @@ function EmployeeAttendanceContent() {
                 <th className="px-5 py-4 text-center">Check In</th>
                 <th className="px-5 py-4 text-center">Check Out</th>
                 <th className="px-5 py-4 text-center">Status</th>
+                <th className="px-5 py-4 text-center">Working Hours</th>
                 <th className="px-5 py-4 text-center">Notes</th>
               </tr>
             </thead>
@@ -203,13 +225,13 @@ function EmployeeAttendanceContent() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4 text-gray-400">
+                  <td colSpan={6} className="text-center py-4 text-gray-400">
                     Loading...
                   </td>
                 </tr>
               ) : attendanceData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4 text-gray-400">
+                  <td colSpan={6} className="text-center py-4 text-gray-400">
                     No records found
                   </td>
                 </tr>
@@ -219,8 +241,21 @@ function EmployeeAttendanceContent() {
                     <td className="px-5 py-4">{row.date}</td>
                     <td className="px-5 py-4 text-center">{row.checkIn}</td>
                     <td className="px-5 py-4 text-center">{row.checkOut}</td>
+
                     <td className="px-5 py-4 text-center text-yellow-400">
                       {row.status}
+                    </td>
+
+                    <td
+                      className={`px-5 py-4 text-center ${
+                        row.workingHours !== "-" &&
+                        row.workingHours !== "..." &&
+                        parseInt(row.workingHours) < 8
+                          ? "text-red-400"
+                          : "text-green-400"
+                      }`}
+                    >
+                      {row.workingHours}
                     </td>
                     <td className="px-5 py-4 text-center">{row.notes}</td>
                   </tr>
