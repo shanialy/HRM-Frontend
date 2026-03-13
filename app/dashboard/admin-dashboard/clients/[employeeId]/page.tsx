@@ -24,7 +24,7 @@ export default function EmployeeClientsPage() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const res = await getRequest(`employee/employees/${employeeId}`);
+        const res: any = await getRequest(`employee/employees/${employeeId}`);
 
         const clientsData = res?.data?.data?.clients || [];
 

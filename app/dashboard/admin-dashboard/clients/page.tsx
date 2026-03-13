@@ -20,7 +20,7 @@ export default function ClientsPage() {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const res = await getRequest(
+        const res: any = await getRequest(
           "employee/getAllEmployees?page=1&limit=100",
         );
 
