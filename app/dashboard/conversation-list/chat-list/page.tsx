@@ -145,6 +145,10 @@ export default function ChatListPage() {
 
     const handleMessage = (newMessage: any) => {
       console.log("💬 MESSAGE EVENT:", newMessage);
+      if (newMessage.sender?._id !== user?._id) {
+        const audio = new Audio("/faaah.mp3");
+        audio.play().catch(() => {});
+      }
 
       setChats((prev) => {
         const exists = prev.find(
