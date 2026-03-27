@@ -101,7 +101,7 @@ function ConversationContent() {
 
     const handleNewMessage = (message: Message) => {
       console.log("🔥 SOCKET MESSAGE RECEIVED:", message);
-      // console.log("TESTING", message.sender._id, user?._id);
+      console.log("TESTING MESSAGE", message?.sender._id, user?._id);
       // if (message.sender._id !== user?._id) {
       //   const audio = new Audio("/faaah.mp3");
       //   audio.play().catch((err) => {
