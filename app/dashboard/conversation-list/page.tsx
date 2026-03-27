@@ -28,7 +28,6 @@ function ConversationContent() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const notificationSound = useRef<HTMLAudioElement | null>(null);
 
   // ================= FETCH DATA =================
   useEffect(() => {
@@ -103,12 +102,12 @@ function ConversationContent() {
     const handleNewMessage = (message: Message) => {
       console.log("🔥 SOCKET MESSAGE RECEIVED:", message);
       console.log("TESTING", message.sender._id, user?._id);
-      if (message.sender._id !== user?._id) {
-        const audio = new Audio("/faaah.mp3");
-        audio.play().catch((err) => {
-          console.log("Audio play blocked:", err);
-        });
-      }
+      // if (message.sender._id !== user?._id) {
+      //   const audio = new Audio("/faaah.mp3");
+      //   audio.play().catch((err) => {
+      //     console.log("Audio play blocked:", err);
+      //   });
+      // }
       if (message.conversation?.toString() === chatId?.toString()) {
         console.log("Message belongs to this chat");
 
