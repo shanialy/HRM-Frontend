@@ -31,7 +31,7 @@ function ConversationContent() {
   const notificationSound = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    notificationSound.current = new Audio("../../../public/faaah.mp3");
+    notificationSound.current = new Audio("/faaah.mp3");
   }, []);
 
   // ================= FETCH DATA =================
