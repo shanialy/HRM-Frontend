@@ -37,6 +37,7 @@ export default function LoginPage() {
 
       dispatch(setCredentials({ token, user }));
       socketService.connect(token);
+      console.log("User logged in, token stored, socket connected");
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
