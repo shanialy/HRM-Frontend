@@ -1,14 +1,10 @@
-"use client";
-
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReduxProvider from "./dashboard/providers/ReduxProvider";
 import SocketProvider from "./dashboard/providers/SocketProvider";
 import { Toaster } from "react-hot-toast";
-import { useEffect } from "react";
-import { useAppSelector } from "./dashboard/redux/hooks";
-import socketService from "@/app/services/socket.service";
+import GlobalSocketSound from "@/app/components/layout/GlobalSocketSound"; // client component
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,6 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// ✅ This is server-side, no "use client"
 export const metadata: Metadata = {
   title: "TSH-HRM",
   description: "TSH-HRM",
@@ -27,9 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body
@@ -42,7 +37,6 @@ export default function RootLayout({
               duration: 3000,
             }}
           />
-
           <SocketProvider>
             <GlobalSocketSound />
             {children}
@@ -51,28 +45,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
-
-// ================= GLOBAL SOCKET SOUND =================
-function GlobalSocketSound() {
-  const user = useAppSelector((state) => state.auth.user);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const handleMessage = (message: any) => {
-      if (message.sender?._id !== user._id) {
-        const audio = new Audio("/faaah.mp3");
-        audio.play().catch(() => {});
-      }
-    };
-
-    socketService.on("message", handleMessage);
-
-    return () => {
-      socketService.off("message", handleMessage);
-    };
-  }, [user]);
-
-  return null;
 }
