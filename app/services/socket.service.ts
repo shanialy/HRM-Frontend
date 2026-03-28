@@ -23,7 +23,7 @@ class SocketService {
     this.socket = io("https://d15mne01ku2os0.cloudfront.net", {
       // "https://wst2pk24-7000.inc1.devtunnels.ms"
       auth: { token },
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

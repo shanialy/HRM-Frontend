@@ -7,6 +7,7 @@ import Button from "@/app/components/ui/Button";
 import { loginUser } from "@/app/services/auth.services";
 import { normalizeRole } from "@/app/utills/normalizeRole";
 import { setCredentials } from "@/app/dashboard/redux/slices/authSlice";
+import socketService from "@/app/services/socket.service";
 import { useDispatch } from "react-redux";
 
 export default function LoginPage() {
@@ -35,6 +36,7 @@ export default function LoginPage() {
       const role = normalizeRole(user.role);
 
       dispatch(setCredentials({ token, user }));
+      socketService.connect(token);
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
@@ -50,9 +52,7 @@ export default function LoginPage() {
       } else if (role === "client") {
         router.push("/dashboard/client-dashboard");
       }
-
     } catch (error: any) {
-
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,6 @@ export default function LoginPage() {
 
         {/* ✅ CHANGE 2: relative div banaya taake eye icon input ke andar aaye */}
         <div className="relative mb-4">
-
           {/* ✅ CHANGE 3: input type dynamic kiya */}
           <input
             type={showPassword ? "text" : "password"} // 👈 toggle logic
@@ -94,7 +93,6 @@ export default function LoginPage() {
           >
             {showPassword ? "🙈" : "👁"}
           </button>
-
         </div>
 
         {/* LOGIN BUTTON */}
