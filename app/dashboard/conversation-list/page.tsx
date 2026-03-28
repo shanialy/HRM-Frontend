@@ -3,12 +3,15 @@
 import Sidebar from "@/app/components/layout/Sidebar";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
+import { Paperclip } from "lucide-react";
 import {
   chatService,
   Message,
   Conversation,
 } from "@/app/services/chat.service";
-import { useAppSelector } from "@/app/dashboard/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/app/dashboard/redux/hooks";
+import { setConversationUnread } from "@/app/dashboard/redux/slices/chatUnreadSlice";
 import socketService from "@/app/services/socket.service";
 
 function ConversationContent() {
@@ -16,6 +19,7 @@ function ConversationContent() {
   const chatId = searchParams.get("chatId");
   const router = useRouter();
 
+  const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   console.log("Logged user:", user);
 
@@ -23,11 +27,16 @@ function ConversationContent() {
   const [input, setInput] = useState("");
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [attachMenuPos, setAttachMenuPos] = useState<{
+    left: number;
+    bottom: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
 
   // ================= FETCH DATA =================
   useEffect(() => {
@@ -98,16 +107,13 @@ function ConversationContent() {
 
     console.log("Marking conversation as read:", chatId);
     chatService.markAsRead(chatId);
+    dispatch(
+      setConversationUnread({ conversationId: chatId, unreadCount: 0 }),
+    );
 
     const handleNewMessage = (message: Message) => {
       console.log("🔥 SOCKET MESSAGE RECEIVED:", message);
       console.log("TESTING MESSAGE", message?.sender._id, user?._id);
-      // if (message.sender._id !== user?._id) {
-      //   const audio = new Audio("/faaah.mp3");
-      //   audio.play().catch((err) => {
-      //     console.log("Audio play blocked:", err);
-      //   });
-      // }
       if (message.conversation?.toString() === chatId?.toString()) {
         console.log("Message belongs to this chat");
 
@@ -126,6 +132,9 @@ function ConversationContent() {
         });
 
         chatService.markAsRead(chatId);
+        dispatch(
+          setConversationUnread({ conversationId: chatId, unreadCount: 0 }),
+        );
       }
     };
 
@@ -167,7 +176,7 @@ function ConversationContent() {
       chatService.removeListener("error");
       socket?.off("connect", handleSocketConnect);
     };
-  }, [chatId, user, router]);
+  }, [chatId, user, router, dispatch]);
 
   // ================= AUTO SCROLL =================
   useEffect(() => {
@@ -175,6 +184,61 @@ function ConversationContent() {
 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const closeAttachMenu = () => setAttachMenuPos(null);
+
+  const toggleAttachMenu = () => {
+    if (attachMenuPos) {
+      closeAttachMenu();
+      return;
+    }
+    const btn = attachButtonRef.current;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    setAttachMenuPos({
+      left: r.left,
+      bottom: window.innerHeight - r.top + 8,
+    });
+  };
+
+  /** Portaled menu: stays above stacking/overflow quirks; sync position on scroll */
+  useEffect(() => {
+    if (!attachMenuPos) return;
+
+    const sync = () => {
+      const btn = attachButtonRef.current;
+      if (!btn) {
+        closeAttachMenu();
+        return;
+      }
+      const r = btn.getBoundingClientRect();
+      setAttachMenuPos({
+        left: r.left,
+        bottom: window.innerHeight - r.top + 8,
+      });
+    };
+
+    window.addEventListener("scroll", sync, true);
+    window.addEventListener("resize", sync);
+
+    const onDocMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        attachButtonRef.current?.contains(t) ||
+        attachMenuRef.current?.contains(t)
+      ) {
+        return;
+      }
+      closeAttachMenu();
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+
+    return () => {
+      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", sync);
+      document.removeEventListener("mousedown", onDocMouseDown);
+    };
+  }, [attachMenuPos]);
 
   const sendMessage = async () => {
     console.log("sendMessage triggered", { input, selectedFile });
@@ -270,7 +334,7 @@ function ConversationContent() {
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex h-screen min-h-0 flex-1 flex-col overflow-hidden">
         {/* HEADER */}
         <div className="h-14 px-6 flex items-center justify-between border-b border-white/10 bg-gray-900/80 flex-shrink-0">
           <div className="flex items-center gap-4">
@@ -304,8 +368,8 @@ function ConversationContent() {
           </div>
         </div>
 
-        {/* MESSAGES */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-4">
+        {/* MESSAGES — min-h-0 lets this region shrink so it cannot cover the composer (fixes attach / clicks locally) */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
           {loading ? (
             <div className="text-center text-gray-400">Loading messages...</div>
           ) : messages.length === 0 ? (
@@ -412,7 +476,7 @@ function ConversationContent() {
         </div>
 
         {selectedFile && (
-          <div className="px-4 pb-2">
+          <div className="shrink-0 px-4 pb-2">
             <div className="w-32 h-32 rounded-lg overflow-hidden border border-white/10 bg-gray-800 relative flex items-center justify-center">
               {selectedFile.type.startsWith("image") && (
                 <img
@@ -466,7 +530,7 @@ function ConversationContent() {
         )}
 
         {/* INPUT */}
-        <div className="p-4 border-t border-white/10 bg-gray-900/80 flex gap-3 items-center relative">
+        <div className="relative z-30 flex shrink-0 flex-wrap items-end gap-3 overflow-visible border-t border-white/10 bg-gray-900/80 p-4">
           <input
             type="file"
             ref={fileInputRef}
@@ -480,83 +544,98 @@ function ConversationContent() {
             }}
           />
 
-          {/* ATTACH BUTTON */}
-          <div className="relative">
+          {/* ATTACH — menu rendered via portal + fixed so parent overflow/stacking cannot hide it */}
+          <div className="relative shrink-0">
             <button
-              onClick={() => {
-                console.log("Toggle attach menu");
-
-                setShowAttachMenu(!showAttachMenu);
+              ref={attachButtonRef}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleAttachMenu();
               }}
-              className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-800 border border-white/10 hover:bg-gray-700 transition"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-gray-800 transition hover:bg-gray-700"
+              aria-label="Attach file"
+              aria-expanded={attachMenuPos !== null}
+              aria-haspopup="menu"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-5 h-5 text-gray-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 01-7.78-7.78l9.9-9.9a3.5 3.5 0 114.95 4.95l-9.19 9.19a1.5 1.5 0 11-2.12-2.12l8.49-8.48"
-                />
-              </svg>
+              <Paperclip className="h-5 w-5 text-gray-300" strokeWidth={2} />
             </button>
 
-            {showAttachMenu && (
-              <div className="absolute bottom-12 left-0 w-44 bg-gray-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
-                <button
-                  onClick={() => {
-                    console.log("Attach image clicked");
-                    fileInputRef.current?.click();
-                    setShowAttachMenu(false);
+            {attachMenuPos &&
+              typeof document !== "undefined" &&
+              createPortal(
+                <div
+                  ref={attachMenuRef}
+                  role="menu"
+                  className="fixed z-[10000] w-44 overflow-hidden rounded-xl border border-white/10 bg-gray-900 text-white shadow-xl"
+                  style={{
+                    left: attachMenuPos.left,
+                    bottom: attachMenuPos.bottom,
                   }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 w-full text-left"
                 >
-                  <span className="text-lg">📷</span>
-                  <span className="text-sm">Image</span>
-                </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      closeAttachMenu();
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-800"
+                  >
+                    <span className="text-lg" aria-hidden>
+                      📷
+                    </span>
+                    <span className="text-sm">Image</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    console.log("Attach video clicked");
-                    fileInputRef.current?.click();
-                    setShowAttachMenu(false);
-                  }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 w-full text-left"
-                >
-                  <span className="text-lg">🎥</span>
-                  <span className="text-sm">Video</span>
-                </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      closeAttachMenu();
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-800"
+                  >
+                    <span className="text-lg" aria-hidden>
+                      🎥
+                    </span>
+                    <span className="text-sm">Video</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    console.log("Attach audio clicked");
-                    fileInputRef.current?.click();
-                    setShowAttachMenu(false);
-                  }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 w-full text-left"
-                >
-                  <span className="text-lg">🎵</span>
-                  <span className="text-sm">Audio</span>
-                </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      closeAttachMenu();
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-800"
+                  >
+                    <span className="text-lg" aria-hidden>
+                      🎵
+                    </span>
+                    <span className="text-sm">Audio</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    console.log("Attach file clicked");
-                    fileInputRef.current?.click();
-                    setShowAttachMenu(false);
-                  }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 w-full text-left"
-                >
-                  <span className="text-lg">📄</span>
-                  <span className="text-sm">File</span>
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      closeAttachMenu();
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-800"
+                  >
+                    <span className="text-lg" aria-hidden>
+                      📄
+                    </span>
+                    <span className="text-sm">File</span>
+                  </button>
+                </div>,
+                document.body,
+              )}
           </div>
 
           <input
@@ -576,11 +655,12 @@ function ConversationContent() {
           />
 
           <button
+            type="button"
             onClick={() => {
               console.log("Send button clicked");
               sendMessage();
             }}
-            className="bg-[#EE2737] px-5 py-2 rounded"
+            className="rounded bg-[#EE2737] px-5 py-2"
           >
             Send
           </button>

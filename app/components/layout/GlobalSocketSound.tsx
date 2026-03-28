@@ -6,44 +6,34 @@ import socketService from "@/app/services/socket.service";
 
 export default function GlobalSocketSound() {
   const user = useAppSelector((state) => state.auth.user);
+  const token = useAppSelector((state) => state.auth.token);
 
   useEffect(() => {
-    if (!user) return;
+    if (!token || !user?._id) return;
 
-    const socket = socketService.getSocket();
+    let cancelled = false;
 
-    const attachListener = () => {
-      console.log(
-        "GlobalSocketSound attaching listener, socket connected:",
-        socket?.connected,
-      );
-
-      const handleMessage = (message: any) => {
-        console.log("GlobalSocketSound received message:", message);
-        if (message.sender?._id !== user._id) {
-          const audio = new Audio("/faaah.mp3");
-          audio.play().catch(() => {});
-        }
-      };
-
-      socketService.on("message", handleMessage);
-
-      return () => {
-        console.log("GlobalSocketSound cleaning listener");
-        socketService.off("message", handleMessage);
-      };
+    const handleMessage = (message: { sender?: { _id?: string } }) => {
+      console.log("GlobalSocketSound=======:", message, cancelled);
+      if (cancelled) return;
+      console.log("Current user ID:", message?.sender?._id !== user._id);
+      if (message?.sender?._id !== user._id) {
+        new Audio("/faaah.mp3").play().catch(() => {});
+      }
     };
 
-    if (!socket || !socket.connected) {
-      console.log("GlobalSocketSound waiting for socket connect...");
-      socket?.once("connect", () => {
-        console.log("GlobalSocketSound socket connected");
-        attachListener();
-      });
-    } else {
-      return attachListener();
-    }
-  }, [user]);
+    const onConnected = () => {
+      if (cancelled) return;
+      socketService.on("message", handleMessage);
+    };
+
+    socketService.onReady(onConnected);
+
+    return () => {
+      cancelled = true;
+      socketService.off("message", handleMessage);
+    };
+  }, [token, user?._id]);
 
   return null;
 }

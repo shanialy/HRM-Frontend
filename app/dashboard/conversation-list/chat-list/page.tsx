@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { chatService, Conversation } from "@/app/services/chat.service";
-import { useAppSelector } from "@/app/dashboard/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/app/dashboard/redux/hooks";
+import { setConversationUnread } from "@/app/dashboard/redux/slices/chatUnreadSlice";
 
 const Sidebar = dynamic(() => import("@/app/components/layout/Sidebar"), {
   ssr: false,
@@ -17,6 +18,7 @@ export default function ChatListPage() {
   console.log("🚀 ChatListPage render");
 
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const token = useAppSelector((state) => state.auth.token);
 
@@ -145,10 +147,6 @@ export default function ChatListPage() {
 
     const handleMessage = (newMessage: any) => {
       console.log("💬 MESSAGE EVENT:", newMessage, user);
-      if (newMessage.sender?._id !== user?._id) {
-        const audio = new Audio("/faaah.mp3");
-        audio.play().catch(() => {});
-      }
 
       setChats((prev) => {
         const exists = prev.find(
@@ -195,6 +193,7 @@ export default function ChatListPage() {
       console.log("🔥 UNREAD EVENT RECEIVED");
       console.log("conversationId:", conversationId);
       console.log("unreadCount:", unreadCount);
+      dispatch(setConversationUnread({ conversationId, unreadCount }));
       setChats((prev) => {
         const updated = prev.map((chat) =>
           chat._id === conversationId
@@ -236,7 +235,7 @@ export default function ChatListPage() {
       socketService.off("unreadUpdate", handleUnread);
       socketService.off("newConversation", handleNewConversation);
     };
-  }, [token, user]);
+  }, [token, user, dispatch]);
 
   // ================= FILTER =================
   const filteredChats = useMemo(() => {
