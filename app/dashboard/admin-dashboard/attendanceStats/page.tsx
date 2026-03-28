@@ -4,6 +4,7 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getRequest } from "@/app/services/api";
+import { Suspense } from "react";
 
 const months = [
   "January",
@@ -28,7 +29,7 @@ interface AttendanceAPI {
   status?: string;
 }
 
-export default function AttendanceStatsPage() {
+function AttendanceStatsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -174,5 +175,13 @@ export default function AttendanceStatsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AttendanceStatsPage() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <AttendanceStatsContent />
+    </Suspense>
   );
 }
