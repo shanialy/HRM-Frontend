@@ -28,6 +28,9 @@ type GetProfileResponse = {
       email: string;
       role: string;
       salary: number;
+      phone?: string;
+      address?: string;
+      department?: string;
       userType?: string;
       targetAmount?: number;
       createdAt?: string;
@@ -64,9 +67,9 @@ export default function MyProfilePage() {
         const mappedProfile: Profile = {
           fullname: `${user.firstName} ${user.lastName}`.trim(),
           email: user.email,
-          phone: "", // API doesn't have phone
-          address: "", // API doesn't have address
-          department: "", // API doesn't have department
+          phone: user.phone || "",
+          address: user.address || "",
+          department: user.department || "",
           designation: user.role,
           salary: user.salary.toString(),
           image: `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}`,
