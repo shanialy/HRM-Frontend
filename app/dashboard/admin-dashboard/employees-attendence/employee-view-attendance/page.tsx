@@ -3,7 +3,7 @@
 import Sidebar from "@/app/components/layout/Sidebar";
 import Image from "next/image";
 import { useState, useEffect, Suspense, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getRequest } from "@/app/services/api";
 
 // Month names
@@ -48,6 +48,7 @@ interface AttendanceRow {
 }
 
 function EmployeeAttendanceContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const employeeId = searchParams.get("employeeId");
 
@@ -148,9 +149,6 @@ function EmployeeAttendanceContent() {
   };
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-
-    fetchedRef.current = true;
     fetchAttendance();
   }, [month, year, employeeId]);
 
@@ -177,39 +175,54 @@ function EmployeeAttendanceContent() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-400 mb-1">Month</label>
-            <select
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+          {/* LEFT SIDE (Month + Year) */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">Month</label>
+              <select
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
+              >
+                {months.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">Year</label>
+              <select
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
+              >
+                {[2024, 2025, 2026, 2027].map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-400 mb-1">Year</label>
-            <select
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-              className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg text-sm"
-            >
-              {[2024, 2025, 2026, 2027].map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* RIGHT SIDE BUTTON */}
+          <button
+            onClick={() => {
+              router.push(
+                `/dashboard/admin-dashboard/attendanceStats?employeeId=${employeeId}&month=${month}&year=${year}`,
+              );
+            }}
+            className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-sm font-medium transition"
+          >
+            View Stats
+          </button>
         </div>
 
-        <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-hidden">
+        <div className="bg-gray-900/70 rounded-xl border border-white/10 max-h-[500px] overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-800 text-gray-300">
               <tr>
@@ -250,7 +263,7 @@ function EmployeeAttendanceContent() {
                       className={`px-5 py-4 text-center ${
                         row.workingHours !== "-" &&
                         row.workingHours !== "..." &&
-                        parseInt(row.workingHours) < 8
+                        parseInt(row.workingHours) < 7
                           ? "text-red-400"
                           : "text-green-400"
                       }`}
