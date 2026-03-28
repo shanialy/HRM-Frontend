@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Home,
   Users,
@@ -13,15 +12,59 @@ import {
   LogOut,
 } from "lucide-react";
 import { logout } from "@/app/dashboard/redux/slices/authSlice";
+import {
+  selectChatTotalUnread,
+  setConversationUnread,
+  setUnreadMapFromConversations,
+} from "@/app/dashboard/redux/slices/chatUnreadSlice";
+import { useAppDispatch, useAppSelector } from "@/app/dashboard/redux/hooks";
+import { chatService, type Conversation } from "@/app/services/chat.service";
+import socketService from "@/app/services/socket.service";
 
 /* ================= TYPES ================= */
 type Role = "admin" | "employee" | "client" | null;
+
+function ChatSidebarLink({
+  href,
+  className,
+  totalUnread,
+}: {
+  href: string;
+  className: string;
+  totalUnread: number;
+}) {
+  const n = Math.max(0, Math.floor(Number(totalUnread) || 0));
+  return (
+    <Link href={href} className={className}>
+      <MessageSquare className="shrink-0" size={18} aria-hidden />
+      <span className="min-w-0 flex-1">Chat</span>
+      {n > 0 && (
+        <span
+          className={`grid flex-none place-items-center rounded-full border-0 text-[12px] font-bold tabular-nums leading-none tracking-tight text-white shadow-none outline-none ring-0 ${
+            n > 99
+              ? "h-5 max-h-5 min-h-5 min-w-5 px-1.5"
+              : n >= 10
+                ? "h-5 max-h-5 min-h-5 min-w-5 px-1"
+                : "h-5 max-h-5 min-h-5 w-5 min-w-5 max-w-5 overflow-hidden p-0"
+          }`}
+          aria-label={`${n} unread messages`}
+        >
+          {n > 99 ? "99+" : n}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 /* ================= COMPONENT ================= */
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
+
+  const token = useAppSelector((s) => s.auth.token);
+  const user = useAppSelector((s) => s.auth.user);
+  const totalUnread = useAppSelector(selectChatTotalUnread);
 
   // ✅ Role from localStorage
   const [role] = useState<Role>(() => {
@@ -34,6 +77,53 @@ export default function Sidebar() {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("department");
   });
+
+  useEffect(() => {
+    if (!token || !user?._id) return;
+
+    let cancelled = false;
+    const userId = user._id;
+
+    const applyConversations = (conversations: Conversation[]) => {
+      if (cancelled) return;
+      dispatch(setUnreadMapFromConversations({ conversations, userId }));
+    };
+
+    const refreshUnread = () => {
+      chatService.getConversations(1, 100, (data) => {
+        applyConversations(data ?? []);
+      });
+    };
+
+    refreshUnread();
+
+    const onUnread = (data: {
+      conversationId: string;
+      unreadCount: number;
+    }) => {
+      if (cancelled) return;
+      dispatch(setConversationUnread(data));
+    };
+
+    const onNewConversation = () => {
+      if (cancelled) return;
+      refreshUnread();
+    };
+
+    const onConnected = () => {
+      if (cancelled) return;
+      socketService.on("unreadUpdate", onUnread);
+      socketService.on("newConversation", onNewConversation);
+    };
+
+    socketService.onReady(onConnected);
+
+    return () => {
+      cancelled = true;
+      socketService.off("unreadUpdate", onUnread);
+      socketService.off("newConversation", onNewConversation);
+    };
+  }, [token, user?._id, dispatch]);
 
   if (!role) return null;
 
@@ -48,8 +138,8 @@ export default function Sidebar() {
 
   /* ================= UI ================= */
   return (
-    <aside className="w-64 h-screen bg-gray-900 text-white p-6 flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto">
+    <aside className="flex h-screen min-h-0 w-64 flex-col overflow-hidden bg-gray-900 p-6 text-white">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <h2 className="text-xl font-bold mb-8 capitalize text-[#EE2737]">
           {role} Dashboard
         </h2>
@@ -66,13 +156,11 @@ export default function Sidebar() {
                 Home
               </Link>
 
-              <Link
+              <ChatSidebarLink
                 href="/dashboard/conversation-list"
                 className={linkClass("/dashboard/conversation-list")}
-              >
-                <MessageSquare size={18} />
-                Chat
-              </Link>
+                totalUnread={totalUnread}
+              />
 
               <Link
                 href="/dashboard/settings"
@@ -95,13 +183,10 @@ export default function Sidebar() {
                 Home
               </Link>
 
-              {/* 🔥 Clients visible ONLY for SALES */}
               {department === "SALES" && (
                 <Link
                   href="/dashboard/employe-dashboard/clients"
-                  className={linkClass(
-                    "/dashboard/employe-dashboard/clients"
-                  )}
+                  className={linkClass("/dashboard/employe-dashboard/clients")}
                 >
                   <Users size={18} />
                   Clients
@@ -110,23 +195,17 @@ export default function Sidebar() {
 
               <Link
                 href="/dashboard/employe-dashboard/attendence"
-                className={linkClass(
-                  "/dashboard/employe-dashboard/attendence"
-                )}
+                className={linkClass("/dashboard/employe-dashboard/attendence")}
               >
                 <ClipboardCheck size={18} />
                 Attendance
               </Link>
 
-              <Link
+              <ChatSidebarLink
                 href="/dashboard/conversation-list/chat-list"
-                className={linkClass(
-                  "/dashboard/conversation-list/chat-list"
-                )}
-              >
-                <MessageSquare size={18} />
-                Chat
-              </Link>
+                className={linkClass("/dashboard/conversation-list/chat-list")}
+                totalUnread={totalUnread}
+              />
 
               <Link
                 href="/dashboard/settings"
@@ -152,7 +231,7 @@ export default function Sidebar() {
               <Link
                 href="/dashboard/admin-dashboard/employes-list"
                 className={linkClass(
-                  "/dashboard/admin-dashboard/employes-list"
+                  "/dashboard/admin-dashboard/employes-list",
                 )}
               >
                 <Users size={18} />
@@ -162,18 +241,17 @@ export default function Sidebar() {
               <Link
                 href="/dashboard/admin-dashboard/employees-attendence"
                 className={linkClass(
-                  "/dashboard/admin-dashboard/employees-attendence"
+                  "/dashboard/admin-dashboard/employees-attendence",
                 )}
               >
                 <ClipboardCheck size={18} />
                 Attendance
               </Link>
 
-              {/* ✅ NEW ADDED - Attendance Requests */}
               <Link
                 href="/dashboard/admin-dashboard/attendance-requests"
                 className={linkClass(
-                  "/dashboard/admin-dashboard/attendance-requests"
+                  "/dashboard/admin-dashboard/attendance-requests",
                 )}
               >
                 <ClipboardCheck size={18} />
@@ -181,26 +259,18 @@ export default function Sidebar() {
               </Link>
 
               <Link
-  href="/dashboard/admin-dashboard/leaves"
-  className={linkClass(
-    "/dashboard/admin-dashboard/leaves"
-  )}
->
-  <ClipboardCheck size={18} />
-  Leave Requests
-</Link>
-
-              <Link
-                href="/dashboard/conversation-list/chat-list"
-                className={linkClass(
-                  "/dashboard/conversation-list/chat-list"
-                )}
+                href="/dashboard/admin-dashboard/leaves"
+                className={linkClass("/dashboard/admin-dashboard/leaves")}
               >
-                <MessageSquare size={18} />
-                
-                Chat
+                <ClipboardCheck size={18} />
+                Leave Requests
               </Link>
 
+              <ChatSidebarLink
+                href="/dashboard/conversation-list/chat-list"
+                className={linkClass("/dashboard/conversation-list/chat-list")}
+                totalUnread={totalUnread}
+              />
 
               <Link
                 href="/dashboard/settings"
@@ -214,19 +284,18 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* LOGOUT */}
-      <div className="mt-4 flex-shrink-0">
+      {/* LOGOUT — keep above scroll bleed; separate from nav for badge alignment */}
+      <div className="relative z-10 mt-4 shrink-0 border-t border-white/10 bg-gray-900 pt-4">
         <button
+          type="button"
           onClick={() => {
             dispatch(logout());
             localStorage.clear();
             router.push("/auth/login");
           }}
-          className="w-full flex items-center justify-center gap-3
-               px-4 py-3 bg-[#EE2737] hover:bg-[#d81f2e]
-               rounded-xl font-semibold transition cursor-pointer"
+          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-[#EE2737] px-4 py-3 font-semibold transition hover:bg-[#d81f2e]"
         >
-          <LogOut size={18} />
+          <LogOut className="shrink-0" size={18} aria-hidden />
           Logout
         </button>
       </div>
