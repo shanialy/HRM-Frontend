@@ -23,13 +23,14 @@ class SocketService {
     this.socket = io("https://d15mne01ku2os0.cloudfront.net", {
       // "https://wst2pk24-7000.inc1.devtunnels.ms"
       auth: { token },
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     });
 
     this.socket.on("connect", () => {
+      console.log("🟢 Socket Connected:", this.socket?.id);
       this.isConnected = true;
 
       // 🔥 Flush queued emits
@@ -47,7 +48,10 @@ class SocketService {
       this.isConnected = false;
     });
 
-    this.socket.on("connect_error", (err) => {});
+    this.socket.on("connect_error", (err) => {
+      console.log("❌ Socket Connect Error FULL:", err);
+      console.log("❌ Message:", err.message);
+    });
   }
 
   disconnect() {

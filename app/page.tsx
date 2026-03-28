@@ -1,8 +1,28 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "./components/layout/Navbar";
 import Button from "./components/ui/Button";
 
 export default function SplashPage() {
+  const router = useRouter();
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role"); // 👈 role nikal
+
+    if (token) {
+      if (role === "admin") {
+        router.replace("/dashboard/admin-dashboard");
+      } else if (role === "employee") {
+        router.replace("/dashboard/employe-dashboard");
+      } else if (role === "client") {
+        router.replace("/dashboard/client-dashboard");
+      } else {
+        router.replace("/auth/login"); // 👈 fallback
+      }
+    }
+  }, []);
   return (
     <main className="min-h-screen flex items-center justify-center text-white bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="mt-16">

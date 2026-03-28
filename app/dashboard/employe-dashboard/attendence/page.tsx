@@ -26,6 +26,73 @@ export default function AttendancePage() {
   const [requestTime, setRequestTime] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
 
+  const getLocation = () => {
+    return new Promise<{ latitude: number; longitude: number }>(
+      async (resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject("Geolocation not supported");
+          return;
+        }
+
+        // 🔹 reusable function (DRY)
+        const fetchLocation = () => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              resolve({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              });
+            },
+            (error) => {
+              // ❌ user denied from popup
+              if (error.code === error.PERMISSION_DENIED) {
+                reject("Please allow location access to continue");
+              } else {
+                reject("Unable to get location");
+              }
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0,
+            },
+          );
+        };
+
+        try {
+          // ⚠️ Safari me permissions API nahi hoti kabhi kabhi
+          if (!navigator.permissions) {
+            fetchLocation(); // directly call (popup ayega)
+            return;
+          }
+
+          const permission = await navigator.permissions.query({
+            name: "geolocation" as PermissionName,
+          });
+
+          // ✅ already allowed
+          if (permission.state === "granted") {
+            fetchLocation();
+          }
+
+          // ✅ popup show hoga
+          else if (permission.state === "prompt") {
+            fetchLocation();
+          }
+
+          // ❌ blocked permanently
+          else if (permission.state === "denied") {
+            reject(
+              "Location blocked 🚫\n\nAllow it from browser settings:\n\n1. Click 🔒 icon in URL bar\n2. Enable Location\n3. Refresh page",
+            );
+          }
+        } catch (err) {
+          // ⚠️ fallback (edge cases)
+          fetchLocation();
+        }
+      },
+    );
+  };
   const fetchTodayAttendance = async () => {
     try {
       setAttendanceLoading(true);
@@ -57,9 +124,15 @@ export default function AttendancePage() {
   const handleCheckIn = async () => {
     try {
       setLoading(true);
+
+      const location = await getLocation();
+
       const payload = {
         type: "CHECK_IN",
+        latitude: location.latitude,
+        longitude: location.longitude,
       };
+      console.log(payload);
 
       await postRequest<AttendanceApiResponse>(
         "attendance/attendance",
@@ -68,6 +141,11 @@ export default function AttendancePage() {
 
       await fetchTodayAttendance();
     } catch (error: any) {
+      if (error?.response?.data?.message) {
+        alert(error.response.data.message);
+      } else {
+        alert(error.message || "Please Enable Location To CheckIn");
+      }
     } finally {
       setLoading(false);
     }
@@ -78,10 +156,13 @@ export default function AttendancePage() {
   const handleCheckOut = async () => {
     try {
       setLoading(true);
+      const location = await getLocation();
 
       const payload = {
         type: "CHECK_OUT",
         notes: "Checked out from system",
+        latitude: location.latitude,
+        longitude: location.longitude,
       };
 
       await postRequest<AttendanceApiResponse>(
@@ -91,6 +172,11 @@ export default function AttendancePage() {
 
       await fetchTodayAttendance();
     } catch (error: any) {
+      if (error?.response?.data?.message) {
+        alert(error.response.data.message);
+      } else {
+        alert(error.message || "Please Enable Location To CheckOut");
+      }
     } finally {
       setLoading(false);
     }

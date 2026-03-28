@@ -7,9 +7,9 @@ import axios, {
 import toast from "react-hot-toast";
 
 const api: AxiosInstance = axios.create({
-  // baseURL: "http://localhost:7000/api/v1/",
+  baseURL: "http://localhost:7000/api/v1/",
   // "https://wst2pk24-7000.inc1.devtunnels.ms"
-  baseURL: "https://d15mne01ku2os0.cloudfront.net/api/v1/",
+  // baseURL: "https://d15mne01ku2os0.cloudfront.net/api/v1/",
   headers: {
     "Content-Type": "application/json",
   },
@@ -50,9 +50,20 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const status = error?.response?.status;
     const message = error?.response?.data?.message || "Something went wrong";
 
-    toast.error(message);
+    if (status === 401) {
+      toast.error("Session expired. Please login again.");
+
+      localStorage.removeItem("token");
+
+      setTimeout(() => {
+        window.location.href = "/auth/login";
+      }, 1000);
+    } else {
+      toast.error(message);
+    }
 
     return Promise.reject(error);
   },

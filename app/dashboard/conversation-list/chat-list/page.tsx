@@ -14,14 +14,9 @@ const Sidebar = dynamic(() => import("@/app/components/layout/Sidebar"), {
 const PAGE_SIZE = 6;
 
 export default function ChatListPage() {
-  console.log("🚀 ChatListPage render");
-
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
   const token = useAppSelector((state) => state.auth.token);
-
-  console.log("👤 User:", user);
-  console.log("🔑 Token:", token);
 
   const [chats, setChats] = useState<Conversation[]>([]);
   const [search, setSearch] = useState("");
@@ -33,49 +28,59 @@ export default function ChatListPage() {
   const [clientSearch, setClientSearch] = useState("");
   const [clientResults, setClientResults] = useState<any[]>([]);
 
-  console.log("📊 State:", { chats, search, page, loading });
+  const startChat = (userId: string) => {
+    chatService.createConversation(userId, (conversation: any) => {
+      if (!conversation || !conversation._id) return;
 
+      router.push(`/dashboard/conversation-list?chatId=${conversation._id}`);
+    });
+
+    setUserSearch("");
+    setSearchResults([]);
+    setClientSearch("");
+    setClientResults([]);
+  };
   // ================= EMPLOYEE SEARCH =================
   const handleUserSearch = (value: string) => {
-    console.log("🔍 Employee search input:", value);
-
     setUserSearch(value);
 
     if (!value.trim()) {
-      console.log("⚠️ Empty employee search");
       setSearchResults([]);
       return;
     }
 
     chatService.searchUsers(value, (users: any[]) => {
-      console.log("📥 searchUsers response:", users);
+      console.log(users);
+      let filtered = [];
 
-      const employeesOnly = users.filter((u) => u.role !== "CLIENT");
+      if (user?.role === "ADMIN") {
+        filtered = users.filter((u) => u.role === "EMPLOYEE");
+      } else if (user?.role === "EMPLOYEE") {
+        filtered = users.filter((u) => ["ADMIN", "EMPLOYEE"].includes(u.role));
+      } else {
+        filtered = [];
+      }
 
-      console.log("👨‍💼 Employees filtered:", employeesOnly);
-
-      setSearchResults(employeesOnly);
+      setSearchResults(filtered);
     });
   };
 
   // ================= CLIENT SEARCH =================
   const handleClientSearch = (value: string) => {
-    console.log("🔍 Client search input:", value);
-
     setClientSearch(value);
 
     if (!value.trim()) {
-      console.log("⚠️ Empty client search");
       setClientResults([]);
       return;
     }
 
     chatService.searchUsers(value, (users: any[]) => {
-      console.log("📥 client search response:", users);
-
-      const clientsOnly = users.filter((u) => u.role === "CLIENT");
-
-      console.log("👥 Clients filtered:", clientsOnly);
+      const clientsOnly = users.filter(
+        (u) =>
+          u.role === "CLIENT" &&
+          u.status === "ACTIVE" &&
+          u.assignedEmployee === user?._id,
+      );
 
       setClientResults(clientsOnly);
     });
@@ -83,49 +88,31 @@ export default function ChatListPage() {
 
   // ================= FETCH WHEN SOCKET READY =================
   useEffect(() => {
-    console.log("🟢 REALTIME LISTENERS useEffect");
-
     if (!token || !user) {
-      console.log("❌ Token or user missing");
       return;
     }
 
     const tryFetch = () => {
-      console.log("🔄 tryFetch running");
-
       const socket = socketService.getSocket();
 
-      console.log("🔌 Socket in listeners:", socket);
-      console.log("🔌 Socket connected:", socket?.connected);
-
       if (!socket) {
-        console.log("⏳ Socket not ready, retrying...");
         setTimeout(tryFetch, 500);
         return;
       }
 
       const fetchConversations = () => {
-        console.log("📥 Fetching conversations");
-
         setLoading(true);
 
         chatService.getConversations(page, PAGE_SIZE, (data) => {
-          console.log("📦 Conversations received:", data);
-
           setChats(data || []);
           setLoading(false);
         });
       };
 
       if (socket.connected) {
-        console.log("✅ SOCKET CONNECT EVENT FIRED");
-
         fetchConversations();
       } else {
-        console.log("⌛ Waiting socket connect");
-
         socket.once("connect", () => {
-          console.log("⚡ SOCKET CONNECTED EVENT");
           fetchConversations();
         });
       }
@@ -136,24 +123,17 @@ export default function ChatListPage() {
 
   // ================= REALTIME LISTENERS =================
   useEffect(() => {
-    console.log("🟢 REALTIME LISTENERS useEffect");
-
     if (!token || !user) {
-      console.log("❌ Token or user missing for listeners");
       return;
     }
 
     const handleMessage = (newMessage: any) => {
-      console.log("💬 MESSAGE EVENT:", newMessage);
-
       setChats((prev) => {
         const exists = prev.find(
           (chat) => chat._id === newMessage.conversation,
         );
-        console.log("chat exists:", exists);
 
         if (!exists) {
-          console.log("⚠️ Conversation not found in chat list");
           return prev;
         }
 
@@ -178,8 +158,6 @@ export default function ChatListPage() {
             : chat,
         );
 
-        console.log("📊 Chats after message update:", updated);
-
         return updated.sort(
           (a, b) =>
             new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime(),
@@ -188,9 +166,6 @@ export default function ChatListPage() {
     };
 
     const handleUnread = ({ conversationId, unreadCount }: any) => {
-      console.log("🔥 UNREAD EVENT RECEIVED");
-      console.log("conversationId:", conversationId);
-      console.log("unreadCount:", unreadCount);
       setChats((prev) => {
         const updated = prev.map((chat) =>
           chat._id === conversationId
@@ -210,24 +185,17 @@ export default function ChatListPage() {
     };
 
     const handleNewConversation = (conversation: any) => {
-      console.log("🆕 NEW CONVERSATION:", conversation);
-
       setChats((prev) => [conversation, ...prev]);
     };
 
-    console.log("👂 Attaching message listener");
     const socket = socketService.getSocket();
     socketService.on("message", handleMessage);
 
-    console.log("👂 Attaching unreadUpdate listener");
     socketService.on("unreadUpdate", handleUnread);
 
-    console.log("👂 Attaching newConversation listener");
     socketService.on("newConversation", handleNewConversation);
 
     return () => {
-      console.log("🧹 Cleaning listeners");
-
       socketService.off("message", handleMessage);
       socketService.off("unreadUpdate", handleUnread);
       socketService.off("newConversation", handleNewConversation);
@@ -236,8 +204,6 @@ export default function ChatListPage() {
 
   // ================= FILTER =================
   const filteredChats = useMemo(() => {
-    console.log("🔍 Filtering chats");
-
     return chats.filter((chat) => {
       const otherUser = chat.participants.find((p) => p._id !== user?._id);
 
@@ -252,21 +218,15 @@ export default function ChatListPage() {
   }, [chats, search, user]);
 
   const paginatedChats = useMemo(() => {
-    console.log("📄 Paginating chats page:", page);
-
     const start = (page - 1) * PAGE_SIZE;
     return filteredChats.slice(start, start + PAGE_SIZE);
   }, [filteredChats, page]);
 
   const getOtherUser = (participants: Conversation["participants"]) => {
-    console.log("👤 Finding other user");
-
     return participants.find((p) => p._id !== user?._id);
   };
 
   const formatTime = (date: string) => {
-    console.log("⏱ Formatting time:", date);
-
     const now = new Date();
     const messageDate = new Date(date);
     const diffMs = now.getTime() - messageDate.getTime();
@@ -281,8 +241,6 @@ export default function ChatListPage() {
 
     return messageDate.toLocaleDateString();
   };
-
-  console.log("🎨 Rendering UI");
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -299,12 +257,59 @@ export default function ChatListPage() {
               placeholder="Search chats..."
               value={search}
               onChange={(e) => {
-                console.log("🔎 Chat search:", e.target.value);
                 setSearch(e.target.value);
                 setPage(1);
               }}
               className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
             />
+            {/* USER SEARCH (EMPLOYEE / ADMIN) */}
+            <div className="relative">
+              <input
+                placeholder="Search users..."
+                value={userSearch}
+                onChange={(e) => handleUserSearch(e.target.value)}
+                className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10 mt-2"
+              />
+
+              {userSearch.trim() && searchResults.length > 0 && (
+                <div className="absolute top-12 left-0 w-full bg-gray-900 border border-white/10 rounded max-h-60 overflow-y-auto z-50">
+                  {searchResults.map((u) => (
+                    <div
+                      key={u._id}
+                      onClick={() => startChat(u._id)}
+                      className="px-3 py-2 hover:bg-white/10 cursor-pointer"
+                    >
+                      {u.firstName} {u.lastName} ({u.role})
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {user?.role === "EMPLOYEE" && user?.department === "SALES" && (
+              <div className="relative">
+                <input
+                  placeholder="Search clients..."
+                  value={clientSearch}
+                  onChange={(e) => handleClientSearch(e.target.value)}
+                  className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10 mt-2"
+                />
+
+                {clientSearch.trim() && clientResults.length > 0 && (
+                  <div className="absolute top-12 left-0 w-full bg-gray-900 border border-white/10 rounded max-h-60 overflow-y-auto z-50">
+                    {clientResults.map((c) => (
+                      <div
+                        key={c._id}
+                        onClick={() => startChat(c._id)}
+                        className="px-3 py-2 hover:bg-white/10 cursor-pointer"
+                      >
+                        {c.firstName} {c.lastName}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* UI PART SAME AS YOUR FILE — NO LOGIC CHANGE */}
           </div>
@@ -328,8 +333,6 @@ export default function ChatListPage() {
                       chat.unreadCount ??
                       chat.unreadCounts?.[user?._id as string] ??
                       0;
-
-                    console.log("📬 unread for chat:", chat._id, unread);
 
                     const otherUser = getOtherUser(chat.participants);
 
