@@ -44,7 +44,9 @@ export default function GlobalSocketSound() {
           audioRef.current?.pause();
           if (audioRef.current) audioRef.current.currentTime = 0;
 
-          audioRef.current.volume = 1; // restore
+          if (audioRef.current) {
+            audioRef.current.volume = 1;
+          }
 
           unlockedRef.current = true;
           sessionStorage.setItem("audioUnlocked", "true");
