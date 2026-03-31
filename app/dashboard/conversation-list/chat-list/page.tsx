@@ -2,7 +2,7 @@
 
 import socketService from "@/app/services/socket.service";
 import dynamic from "next/dynamic";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { chatService, Conversation } from "@/app/services/chat.service";
 import { useAppSelector, useAppDispatch } from "@/app/dashboard/redux/hooks";
@@ -28,7 +28,8 @@ export default function ChatListPage() {
   const [chats, setChats] = useState<Conversation[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const hasFetched = useRef(false);
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
@@ -84,64 +85,46 @@ export default function ChatListPage() {
   };
 
   // ================= FETCH WHEN SOCKET READY =================
+
   useEffect(() => {
-    console.log("🟢 REALTIME LISTENERS useEffect");
+    if (!token || !user) return;
 
-    if (!token || !user) {
-      console.log("❌ Token or user missing");
-      return;
-    }
+    const fetchData = () => {
+      console.log("📥 FETCHING CONVERSATIONS");
 
-    const tryFetch = () => {
-      console.log("🔄 tryFetch running");
+      setLoading(true);
 
-      const socket = socketService.getSocket();
-
-      console.log("🔌 Socket in listeners:", socket);
-      console.log("🔌 Socket connected:", socket?.connected);
-
-      if (!socket) {
-        console.log("⏳ Socket not ready, retrying...");
-        setTimeout(tryFetch, 500);
-        return;
-      }
-
-      const fetchConversations = () => {
-        console.log("📥 Fetching conversations");
-
-        setLoading(true);
-
-        chatService.getConversations(page, PAGE_SIZE, (data) => {
-          console.log("📦 Conversations received:", data);
-
-          setChats(data || []);
-          setLoading(false);
-        });
-      };
-
-      if (socket.connected) {
-        console.log("✅ SOCKET CONNECT EVENT FIRED");
-
-        fetchConversations();
-      } else {
-        console.log("⌛ Waiting socket connect");
-
-        socket.once("connect", () => {
-          console.log("⚡ SOCKET CONNECTED EVENT");
-          fetchConversations();
-        });
-      }
+      chatService.getConversations(page, PAGE_SIZE, (data) => {
+        console.log("📦 Conversations received:", data);
+        setChats(data || []);
+        setLoading(false);
+      });
     };
 
-    tryFetch();
-  }, [token, user, page]);
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchData();
+    }
 
+    const socket = socketService.getSocket();
+
+    if (socket && !socket.connected) {
+      console.log("⌛ Waiting socket for backup fetch");
+
+      socket.once("connect", () => {
+        console.log("⚡ SOCKET CONNECTED → backup fetch");
+        fetchData();
+      });
+    }
+  }, [token, user]);
   // ================= REALTIME LISTENERS =================
   useEffect(() => {
     console.log("🟢 REALTIME LISTENERS useEffect");
 
     if (!token || !user) {
-      console.log("❌ Token or user missing for listeners");
+      console.log("❌ Token or user missing");
+
+      setLoading(false);
       return;
     }
 
@@ -219,19 +202,23 @@ export default function ChatListPage() {
     };
 
     console.log("👂 Attaching message listener");
-    const socket = socketService.getSocket();
-    socketService.on("message", handleMessage);
+
+    chatService.onMessage(handleMessage);
 
     console.log("👂 Attaching unreadUpdate listener");
+
+    socketService.off("unreadUpdate", handleUnread);
     socketService.on("unreadUpdate", handleUnread);
 
     console.log("👂 Attaching newConversation listener");
+
+    socketService.off("newConversation", handleNewConversation);
     socketService.on("newConversation", handleNewConversation);
 
     return () => {
       console.log("🧹 Cleaning listeners");
 
-      socketService.off("message", handleMessage);
+      chatService.removeListener("message", handleMessage);
       socketService.off("unreadUpdate", handleUnread);
       socketService.off("newConversation", handleNewConversation);
     };
@@ -315,7 +302,11 @@ export default function ChatListPage() {
 
         <main className="flex-1 p-6">
           <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-hidden">
-            {loading ? (
+            {!token || !user ? (
+              <div className="p-6 text-center text-gray-400">
+                Initializing...
+              </div>
+            ) : loading ? (
               <div className="p-6 text-center text-gray-400">
                 Loading chats...
               </div>

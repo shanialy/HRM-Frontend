@@ -1,4 +1,5 @@
 import socketService from "./socket.service";
+let hasFetched = false;
 
 export interface Conversation {
   _id: string;
@@ -71,15 +72,17 @@ export const chatService = {
     limit: number = 10,
     callback: (data: Conversation[]) => void,
   ) => {
-    socketService.off("conversations");
-
+    // ✅ listener FIRST
     socketService.on("conversations", (data: Conversation[]) => {
+      console.log("✅ SOCKET RESPONSE:", data);
       callback(data);
     });
 
+    // ❌ hasFetched completely removed
+
+    // ✅ emit AFTER listener
     socketService.emit("conversations", { page, limit });
   },
-
   // =========================================================
   // 📩 GET MESSAGES
   // =========================================================
