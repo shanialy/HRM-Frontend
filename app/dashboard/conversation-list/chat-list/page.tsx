@@ -29,33 +29,38 @@ export default function ChatListPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const hasFetched = useRef(false);
+
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const [clientSearch, setClientSearch] = useState("");
   const [clientResults, setClientResults] = useState<any[]>([]);
+  const latestUserSearch = useRef("");
+  const latestClientSearch = useRef("");
 
   console.log("📊 State:", { chats, search, page, loading });
 
   // ================= EMPLOYEE SEARCH =================
   const handleUserSearch = (value: string) => {
-    console.log("🔍 Employee search input:", value);
-
     setUserSearch(value);
+    latestUserSearch.current = value;
 
-    if (!value.trim()) {
-      console.log("⚠️ Empty employee search");
+    if (value.trim().length < 2) {
       setSearchResults([]);
       return;
     }
 
     chatService.searchUsers(value, (users: any[]) => {
-      console.log("📥 searchUsers response:", users);
+      // ❌ old response ignore
+      if (latestUserSearch.current !== value) return;
 
-      const employeesOnly = users.filter((u) => u.role !== "CLIENT");
-
-      console.log("👨‍💼 Employees filtered:", employeesOnly);
+      const employeesOnly = users.filter(
+        (u) =>
+          u.role !== "CLIENT" &&
+          `${u.firstName} ${u.lastName}`
+            .toLowerCase()
+            .includes(value.toLowerCase()),
+      );
 
       setSearchResults(employeesOnly);
     });
@@ -63,60 +68,53 @@ export default function ChatListPage() {
 
   // ================= CLIENT SEARCH =================
   const handleClientSearch = (value: string) => {
-    console.log("🔍 Client search input:", value);
-
     setClientSearch(value);
+    latestClientSearch.current = value;
 
-    if (!value.trim()) {
-      console.log("⚠️ Empty client search");
+    if (value.trim().length < 2) {
       setClientResults([]);
       return;
     }
 
     chatService.searchUsers(value, (users: any[]) => {
-      console.log("📥 client search response:", users);
+      // ❌ old response ignore
+      if (latestClientSearch.current !== value) return;
 
-      const clientsOnly = users.filter((u) => u.role === "CLIENT");
-
-      console.log("👥 Clients filtered:", clientsOnly);
-
+      const clientsOnly = users.filter(
+        (u) =>
+          u.role === "CLIENT" &&
+          u.status === "ACTIVE" &&
+          `${u.firstName} ${u.lastName}`
+            .toLowerCase()
+            .includes(value.toLowerCase()),
+      );
       setClientResults(clientsOnly);
     });
   };
-
   // ================= FETCH WHEN SOCKET READY =================
 
   useEffect(() => {
     if (!token || !user) return;
 
-    const fetchData = () => {
-      console.log("📥 FETCHING CONVERSATIONS");
+    const timer = setTimeout(() => {
+      const fetchData = () => {
+        console.log("📥 FETCHING CONVERSATIONS");
 
-      setLoading(true);
+        setLoading(true);
 
-      chatService.getConversations(page, PAGE_SIZE, (data) => {
-        console.log("📦 Conversations received:", data);
-        setChats(data || []);
-        setLoading(false);
-      });
-    };
+        chatService.getConversations(page, PAGE_SIZE, (data) => {
+          console.log("📦 Conversations received:", data);
+          setChats(data || []);
+          setLoading(false);
+        });
+      };
 
-    if (!hasFetched.current) {
-      hasFetched.current = true;
       fetchData();
-    }
+    }, 150);
 
-    const socket = socketService.getSocket();
-
-    if (socket && !socket.connected) {
-      console.log("⌛ Waiting socket for backup fetch");
-
-      socket.once("connect", () => {
-        console.log("⚡ SOCKET CONNECTED → backup fetch");
-        fetchData();
-      });
-    }
+    return () => clearTimeout(timer);
   }, [token, user]);
+
   // ================= REALTIME LISTENERS =================
   useEffect(() => {
     console.log("🟢 REALTIME LISTENERS useEffect");
@@ -273,6 +271,7 @@ export default function ChatListPage() {
   };
 
   console.log("🎨 Rendering UI");
+  console.log("USER ROLE CHECK:", user);
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -285,6 +284,31 @@ export default function ChatListPage() {
           </h1>
 
           <div className="ml-auto flex items-center gap-3 relative">
+            {user?.role === "ADMIN" && (
+              <input
+                placeholder="Search Employee..."
+                value={userSearch}
+                onChange={(e) => handleUserSearch(e.target.value)}
+                className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
+              />
+            )}
+            {user?.role === "EMPLOYEE" && user?.department === "SALES" && (
+              <>
+                <input
+                  placeholder="Search Employee..."
+                  value={userSearch}
+                  onChange={(e) => handleUserSearch(e.target.value)}
+                  className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
+                />
+
+                <input
+                  placeholder="Search Client..."
+                  value={clientSearch}
+                  onChange={(e) => handleClientSearch(e.target.value)}
+                  className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
+                />
+              </>
+            )}
             <input
               placeholder="Search chats..."
               value={search}
@@ -295,7 +319,40 @@ export default function ChatListPage() {
               }}
               className="w-56 px-3 py-2 rounded bg-gray-800 border border-white/10"
             />
-
+            {userSearch.trim().length >= 2 && (
+              <div className="absolute top-12 left-0 bg-gray-800 border border-white/10 w-56 rounded shadow-lg z-50">
+                {searchResults.length > 0 ? (
+                  searchResults.map((u) => (
+                    <div
+                      key={u._id}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {u.firstName} {u.lastName}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-400">
+                    No employee found
+                  </div>
+                )}
+              </div>
+            )}
+            {clientSearch.trim().length >= 2 && (
+              <div className="absolute top-12 left-60 bg-gray-800 border border-white/10 w-56 rounded shadow-lg z-50">
+                {clientResults.length > 0 ? (
+                  clientResults.map((u) => (
+                    <div
+                      key={u._id}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {u.firstName} {u.lastName}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-400">No client found</div>
+                )}
+              </div>
+            )}
             {/* UI PART SAME AS YOUR FILE — NO LOGIC CHANGE */}
           </div>
         </div>
@@ -306,7 +363,7 @@ export default function ChatListPage() {
               <div className="p-6 text-center text-gray-400">
                 Initializing...
               </div>
-            ) : loading ? (
+            ) : chats.length === 0 && loading ? (
               <div className="p-6 text-center text-gray-400">
                 Loading chats...
               </div>
