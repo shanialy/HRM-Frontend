@@ -107,9 +107,7 @@ function ConversationContent() {
 
     console.log("Marking conversation as read:", chatId);
     chatService.markAsRead(chatId);
-    dispatch(
-      setConversationUnread({ conversationId: chatId, unreadCount: 0 }),
-    );
+    dispatch(setConversationUnread({ conversationId: chatId, unreadCount: 0 }));
 
     const handleNewMessage = (message: Message) => {
       console.log("🔥 SOCKET MESSAGE RECEIVED:", message);
@@ -321,10 +319,13 @@ function ConversationContent() {
 
   const otherUser = getOtherUser();
 
-  const formatTime = (date: string) => {
-    const formatted = new Date(date).toLocaleTimeString([], {
+  const formatTime = (date: string | null | undefined) => {
+    if (!date) return "-";
+
+    const formatted = new Date(date).toLocaleTimeString("en-PK", {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
 
     return formatted;
