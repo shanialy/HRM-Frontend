@@ -2,7 +2,7 @@
 
 import socketService from "@/app/services/socket.service";
 import dynamic from "next/dynamic";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { chatService, Conversation } from "@/app/services/chat.service";
 import { useAppSelector, useAppDispatch } from "@/app/dashboard/redux/hooks";
@@ -15,7 +15,7 @@ const Sidebar = dynamic(() => import("@/app/components/layout/Sidebar"), {
 
 const PAGE_SIZE = 6;
 
-export default function ChatListPage() {
+function ChatListContent() {
   console.log("🚀 ChatListPage render");
 
   const router = useRouter();
@@ -302,9 +302,7 @@ export default function ChatListPage() {
 
       <div className="flex-1 flex flex-col">
         <div className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10">
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-            Chats
-          </h1>
+          <h1 className="text-lg font-semibold">Chats</h1>
 
           <div className="ml-auto flex items-center gap-3 relative">
             {user?.role === "ADMIN" && (
@@ -507,5 +505,12 @@ export default function ChatListPage() {
         </main>
       </div>
     </div>
+  );
+}
+export default function ChatListPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatListContent />
+    </Suspense>
   );
 }
