@@ -38,13 +38,13 @@ function ConversationContent() {
   const attachButtonRef = useRef<HTMLButtonElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
 
+  const userId = searchParams.get("userId");
+
   // ================= FETCH DATA =================
   useEffect(() => {
     console.log("useEffect triggered", { chatId, user });
 
     if (!chatId) {
-      console.log("No chatId found, redirecting...");
-      router.push("/dashboard/conversation-list/chat-list");
       return;
     }
 
@@ -79,18 +79,6 @@ function ConversationContent() {
     socket?.on("connect", handleSocketConnect);
 
     console.log("Fetching messages initially");
-
-    chatService.getMessages(chatId, 1, 200, (data) => {
-      console.log("Initial messages:", data);
-
-      setMessages(
-        (data || []).sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        ),
-      );
-      setLoading(false);
-    });
 
     console.log("Fetching conversations");
 
@@ -141,26 +129,26 @@ function ConversationContent() {
     console.log("Adding new message listener");
     chatService.onMessage(handleNewMessage);
 
-    if (!socket?.connected) {
-      console.log("Socket not connected yet");
+    const fetchMessages = () => {
+      chatService.getMessages(chatId, 1, 200, (data) => {
+        console.log("Messages fetched:", data);
 
-      socket?.once("connect", () => {
-        console.log("Socket connected (once)");
-
-        chatService.getMessages(chatId, 1, 200, (data) => {
-          console.log("Messages fetched (once connect):", data);
-
-          setMessages(
-            (data || []).sort(
-              (a, b) =>
-                new Date(a.createdAt).getTime() -
-                new Date(b.createdAt).getTime(),
-            ),
-          );
-          setLoading(false);
-        });
+        setMessages(
+          (data || []).sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          ),
+        );
+        setLoading(false);
       });
-      return;
+    };
+
+    if (socket?.connected) {
+      fetchMessages();
+    } else {
+      socket?.once("connect", () => {
+        fetchMessages();
+      });
     }
 
     chatService.onError((error) => {

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { chatService, Conversation } from "@/app/services/chat.service";
 import { useAppSelector, useAppDispatch } from "@/app/dashboard/redux/hooks";
 import { setConversationUnread } from "@/app/dashboard/redux/slices/chatUnreadSlice";
+import { useSearchParams } from "next/navigation";
 
 const Sidebar = dynamic(() => import("@/app/components/layout/Sidebar"), {
   ssr: false,
@@ -21,6 +22,8 @@ export default function ChatListPage() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const token = useAppSelector((state) => state.auth.token);
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("userId");
 
   console.log("👤 User:", user);
   console.log("🔑 Token:", token);
@@ -114,6 +117,26 @@ export default function ChatListPage() {
 
     return () => clearTimeout(timer);
   }, [token, user]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const existingChat = chats.find((chat) =>
+      chat.participants.some((p) => p._id === userId),
+    );
+
+    if (existingChat) {
+      router.push(`/dashboard/conversation-list?chatId=${existingChat._id}`);
+    } else {
+      chatService.createConversation(userId, (conversation) => {
+        setTimeout(() => {
+          router.push(
+            `/dashboard/conversation-list?chatId=${conversation._id}`,
+          );
+        }, 300);
+      });
+    }
+  }, [userId, chats]);
 
   // ================= REALTIME LISTENERS =================
   useEffect(() => {
@@ -326,6 +349,26 @@ export default function ChatListPage() {
                     <div
                       key={u._id}
                       className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                      onClick={() => {
+                        const existingChat = chats.find((chat) =>
+                          chat.participants.some((p) => p._id === u._id),
+                        );
+
+                        if (existingChat) {
+                          router.push(
+                            `/dashboard/conversation-list?chatId=${existingChat._id}`,
+                          );
+                        } else {
+                          chatService.createConversation(
+                            u._id,
+                            (conversation) => {
+                              router.push(
+                                `/dashboard/conversation-list?chatId=${conversation._id}`,
+                              );
+                            },
+                          );
+                        }
+                      }}
                     >
                       {u.firstName} {u.lastName}
                     </div>
@@ -344,6 +387,26 @@ export default function ChatListPage() {
                     <div
                       key={u._id}
                       className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                      onClick={() => {
+                        const existingChat = chats.find((chat) =>
+                          chat.participants.some((p) => p._id === u._id),
+                        );
+
+                        if (existingChat) {
+                          router.push(
+                            `/dashboard/conversation-list?chatId=${existingChat._id}`,
+                          );
+                        } else {
+                          chatService.createConversation(
+                            u._id,
+                            (conversation) => {
+                              router.push(
+                                `/dashboard/conversation-list?chatId=${conversation._id}`,
+                              );
+                            },
+                          );
+                        }
+                      }}
                     >
                       {u.firstName} {u.lastName}
                     </div>
