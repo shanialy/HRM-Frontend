@@ -278,7 +278,15 @@ export default function Sidebar() {
                 className={linkClass("/dashboard/conversation-list/chat-list")}
                 totalUnread={totalUnread}
               />
-
+              <Link
+                href="/dashboard/admin-dashboard/announcements"
+                className={linkClass(
+                  "/dashboard/admin-dashboard/announcements",
+                )}
+              >
+                <ClipboardCheck size={18} />
+                Announcements
+              </Link>
               <Link
                 href="/dashboard/settings"
                 className={linkClass("/dashboard/settings")}
