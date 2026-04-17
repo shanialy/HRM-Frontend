@@ -60,6 +60,35 @@ function EmployeeAttendanceContent() {
   const [employeeEmail, setEmployeeEmail] = useState("");
   const fetchedRef = useRef(false);
 
+  const isLate = (checkInTime: string) => {
+    if (!checkInTime || checkInTime === "-") return false;
+
+    const date = new Date(`1970-01-01 ${checkInTime}`);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+
+    const totalMinutes = hours * 60 + minutes;
+
+    return totalMinutes > 21 * 60 + 30;
+  };
+
+  const isOverTime = (checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut || checkIn === "-" || checkOut === "-")
+      return false;
+
+    const start = new Date(`1970-01-01 ${checkIn}`);
+    const end = new Date(`1970-01-01 ${checkOut}`);
+
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+
+    const diffMs = end.getTime() - start.getTime();
+    const hours = diffMs / (1000 * 60 * 60);
+
+    return hours > 8;
+  };
+
   const fetchAttendance = async () => {
     if (!employeeId) return;
 
@@ -86,6 +115,7 @@ function EmployeeAttendanceContent() {
                 ? new Date(item.time.checkIn).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
+                    hour12: true,
                   })
                 : "-",
 
@@ -95,6 +125,7 @@ function EmployeeAttendanceContent() {
                 ? new Date(item.time.checkOut).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
+                    hour12: true,
                   })
                 : "-",
             workingHours:
@@ -119,13 +150,18 @@ function EmployeeAttendanceContent() {
                   : "-",
 
             status: item.isLeave
-              ? "LEAVE"
+              ? item.status?.toLowerCase() === "pending"
+                ? "Applied Leave"
+                : item.status?.toLowerCase() === "approved"
+                  ? "Leave Approved"
+                  : item.status?.toLowerCase() === "rejected"
+                    ? "Leave Rejected"
+                    : "Applied Leave"
               : item.time?.checkIn && !item.time?.checkOut
-                ? "CHECK IN"
+                ? "CheckIn"
                 : item.time?.checkIn && item.time?.checkOut
-                  ? "PRESENT"
-                  : "ABSENT",
-
+                  ? "Present"
+                  : "Absent",
             notes: item.notes || "-",
           }),
         );
@@ -252,8 +288,20 @@ function EmployeeAttendanceContent() {
                 attendanceData.map((row, i) => (
                   <tr key={i} className="border-t border-white/10">
                     <td className="px-5 py-4">{row.date}</td>
-                    <td className="px-5 py-4 text-center">{row.checkIn}</td>
-                    <td className="px-5 py-4 text-center">{row.checkOut}</td>
+                    <td
+                      className={`px-5 py-4 text-center ${
+                        row.checkIn === "-"
+                          ? ""
+                          : isLate(row.checkIn)
+                            ? "text-red-400"
+                            : "text-green-400"
+                      }`}
+                    >
+                      {row.checkIn}
+                    </td>
+                    <td className="px-5 py-4 text-center text-white">
+                      {row.checkOut}
+                    </td>
 
                     <td className="px-5 py-4 text-center text-yellow-400">
                       {row.status}
@@ -261,11 +309,11 @@ function EmployeeAttendanceContent() {
 
                     <td
                       className={`px-5 py-4 text-center ${
-                        row.workingHours !== "-" &&
-                        row.workingHours !== "..." &&
-                        parseInt(row.workingHours) < 7
-                          ? "text-red-400"
-                          : "text-green-400"
+                        row.workingHours === "-" || row.workingHours === "..."
+                          ? ""
+                          : parseInt(row.workingHours) >= 8
+                            ? "text-green-400"
+                            : "text-red-400"
                       }`}
                     >
                       {row.workingHours}

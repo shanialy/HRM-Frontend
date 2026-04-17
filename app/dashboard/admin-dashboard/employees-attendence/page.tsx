@@ -78,86 +78,94 @@ export default function AttendancePage() {
     return new Date(year, month, 0).getDate();
   };
 
+  const getWorkingDays = (month: number, year: number) => {
+    const today = new Date();
+    const isCurrentMonth =
+      year === today.getFullYear() && month === today.getMonth() + 1;
+
+    const days = isCurrentMonth
+      ? today.getDate()
+      : new Date(year, month, 0).getDate();
+
+    let workingDays = 0;
+
+    for (let d = 1; d <= days; d++) {
+      const day = new Date(year, month - 1, d).getDay();
+
+      if (day !== 0 && day !== 6) {
+        workingDays++;
+      }
+    }
+
+    return workingDays;
+  };
+
   // ================= FETCH FUNCTION =================
 
   const fetchAttendance = async () => {
     try {
       setLoading(true);
 
-      // ✅ 1. Fetch ALL employees
       const employeesRes = await getRequest<{
         data: { employees: User[] };
       }>(`employee/getAllEmployees?limit=100&search=${search}`);
 
       const allEmployees = employeesRes.data.data.employees || [];
 
-      // ✅ 2. Fetch ALL attendance pages
       let allAttendanceRecords: AttendanceAPI[] = [];
       let currentPage = 1;
       let totalAttendancePages = 1;
 
       do {
-        const res = await getRequest<{
-          status: number;
-          success: boolean;
-          message: string;
-          data: {
-            attendance: AttendanceAPI[];
-            pagination: {
-              totalPages: number;
-            };
-          };
-        }>(
+        const res = await getRequest<any>(
           `attendance/attendance/admin?month=${
             months.indexOf(month) + 1
           }&year=${year}&page=${currentPage}&limit=100`,
         );
 
         const records = res.data.data.attendance || [];
-
         allAttendanceRecords = [...allAttendanceRecords, ...records];
 
         totalAttendancePages = res.data.data.pagination.totalPages;
-
         currentPage++;
       } while (currentPage <= totalAttendancePages);
 
-      // ✅ 3. Calculate total days
-      // ✅ 3. Calculate total days
-      let totalDays = getDaysInMonth(months.indexOf(month) + 1, year);
+      let totalDays = getWorkingDays(months.indexOf(month) + 1, year);
 
-      // current month ka special case
       const today = new Date();
-
       if (
         year === today.getFullYear() &&
         months.indexOf(month) === today.getMonth()
       ) {
-        totalDays = today.getDate();
+        totalDays = getWorkingDays(months.indexOf(month) + 1, year);
       }
 
-      // ✅ 4. Build attendance + leave maps
-      const attendanceMap: Record<string, number> = {};
-      const leaveMap: Record<string, number> = {};
+      // ✅ FIXED LOGIC (ONLY THIS PART CHANGED)
+
+      const attendanceMap: Record<string, Set<string>> = {};
+      const leaveMap: Record<string, Set<string>> = {};
 
       allAttendanceRecords.forEach((item) => {
         const userId = item.user._id;
+        const date = item.date;
 
-        // ✅ PRESENT
+        if (!attendanceMap[userId]) attendanceMap[userId] = new Set();
+        if (!leaveMap[userId]) leaveMap[userId] = new Set();
+
+        // PRESENT → checkIn + checkOut + APPROVED
         if (!item.isLeave && item.time?.checkIn && item.time?.checkOut) {
-          attendanceMap[userId] = (attendanceMap[userId] || 0) + 1;
+          attendanceMap[userId].add(date);
         }
 
-        // ✅ LEAVE
+        // LEAVE → approved only
         if (item.isLeave && item.status === "APPROVED") {
-          leaveMap[userId] = (leaveMap[userId] || 0) + 1;
+          leaveMap[userId].add(date);
         }
       });
 
-      // ✅ 5. Build final summary rows
       const rows: AttendanceRow[] = allEmployees.map((emp) => {
-        const present = attendanceMap[emp._id] || 0;
-        const leave = leaveMap[emp._id] || 0;
+        const present = attendanceMap[emp._id]?.size || 0;
+        const leave = leaveMap[emp._id]?.size || 0;
 
         return {
           id: emp._id,
@@ -171,7 +179,6 @@ export default function AttendancePage() {
 
       setAttendance(rows);
 
-      // ✅ 6. Frontend pagination calculate
       const calculatedTotalPages = Math.ceil(rows.length / PAGE_SIZE);
       setTotalPages(calculatedTotalPages);
     } catch (error) {
@@ -185,6 +192,7 @@ export default function AttendancePage() {
   useEffect(() => {
     fetchAttendance();
   }, [month, year, search]);
+
   // ================= FILTER =================
 
   const filteredAttendance = useMemo(() => {
@@ -195,7 +203,6 @@ export default function AttendancePage() {
     );
   }, [attendance, search]);
 
-  // ✅ Apply frontend pagination
   const paginatedAttendance = filteredAttendance.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
@@ -299,15 +306,12 @@ export default function AttendancePage() {
                     >
                       <td className="px-5 py-4 font-medium">{row.name}</td>
                       <td className="px-5 py-4 text-gray-300">{row.email}</td>
-
                       <td className="px-5 py-4 text-green-400 text-center">
                         {row.present}
                       </td>
-
                       <td className="px-5 py-4 text-yellow-400 text-center">
                         {row.leave}
                       </td>
-
                       <td className="px-5 py-4 text-red-400 text-center">
                         {row.absent}
                       </td>
@@ -318,7 +322,6 @@ export default function AttendancePage() {
             </table>
           </div>
 
-          {/* ✅ Pagination Controls */}
           <div className="flex justify-end gap-2 mt-4">
             <button
               onClick={() => setPage((p) => Math.max(p - 1, 1))}

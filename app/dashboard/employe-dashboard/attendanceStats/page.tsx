@@ -25,8 +25,6 @@ function AttendanceStatsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const employeeId = searchParams.get("employeeId");
-
   const [selectedMonth, setSelectedMonth] = useState(
     searchParams.get("month") || months[new Date().getMonth()],
   );
@@ -45,8 +43,6 @@ function AttendanceStatsContent() {
   const [noData, setNoData] = useState(false);
 
   const fetchStats = async () => {
-    if (!employeeId) return;
-
     try {
       setLoading(true);
 
@@ -54,7 +50,7 @@ function AttendanceStatsContent() {
       const yearNum = Number(selectedYear);
 
       const res = await getRequest<any>(
-        `attendance/attendance/admin?month=${monthIndex}&year=${yearNum}&employeeId=${employeeId}`,
+        `attendance/attendance?month=${monthIndex}&year=${yearNum}`,
       );
 
       if (res.data.success) {
@@ -149,7 +145,7 @@ function AttendanceStatsContent() {
 
   useEffect(() => {
     fetchStats();
-  }, [selectedMonth, selectedYear, employeeId]);
+  }, [selectedMonth, selectedYear]);
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">

@@ -206,6 +206,13 @@ export default function Sidebar() {
                 className={linkClass("/dashboard/conversation-list/chat-list")}
                 totalUnread={totalUnread}
               />
+              <Link
+                href="/dashboard/my-profile"
+                className={linkClass("/dashboard/my-profile")}
+              >
+                <Users size={18} />
+                My Profile
+              </Link>
 
               <Link
                 href="/dashboard/settings"

@@ -3,6 +3,7 @@
 import Sidebar from "@/app/components/layout/Sidebar";
 import { useState, useEffect } from "react";
 import { getRequest } from "@/app/services/api";
+import { Users } from "lucide-react";
 
 type Profile = {
   fullname: string;
@@ -62,7 +63,17 @@ export default function MyProfilePage() {
         const res = await getRequest<GetProfileResponse>(
           "authorization/get-profile",
         );
-        const user = res.data.data.user;
+        console.log("🔥 STEP 1: API HIT");
+
+        console.log("🔥 FULL RES:", res);
+
+        console.log("🔥 RES.DATA:", res?.data);
+
+        console.log("🔥 RES.DATA.DATA:", res?.data?.data);
+
+        console.log("🔥 RES.DATA.DATA.USER:", res?.data?.data?.user);
+
+        const user = res.data.data?.user || res.data.data;
 
         const mappedProfile: Profile = {
           fullname: `${user.firstName} ${user.lastName}`.trim(),

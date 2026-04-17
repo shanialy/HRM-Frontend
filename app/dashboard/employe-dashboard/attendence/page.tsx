@@ -1,157 +1,156 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
+import { useState, useEffect } from "react";
+import { getRequest } from "@/app/services/api";
 import { useRouter } from "next/navigation";
-import { postRequest, getRequest } from "@/app/services/api";
 
-type AttendanceApiResponse = {
-  status: number;
-  success: boolean;
-  message: string;
-  data?: {
-    attendance?: any;
-  };
+const months = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+interface AttendanceAPI {
+  _id: string;
+  user: string;
+  date: string;
+  time?: { checkIn?: string; checkOut?: string };
+  isLeave: boolean;
+  status?: string;
+  notes?: string;
+}
+
+interface AttendanceRow {
+  date: string;
+  checkIn: string;
+  checkOut: string;
+  status: string;
+  workingHours: string;
+  notes: string;
+}
+
+const formatTime = (timeString: string) => {
+  if (!timeString) return "-";
+
+  const date = new Date(timeString);
+
+  return date.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Karachi",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
-export default function AttendancePage() {
+export default function ViewMyAttendance() {
   const router = useRouter();
+  const currentDate = new Date();
 
-  const [selectedDate, setSelectedDate] = useState("");
-  const [leaveNotes, setLeaveNotes] = useState("");
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const currentMonthIndex = currentDate.getMonth();
+
+  const [month, setMonth] = useState(months[currentMonthIndex]);
+  const [year, setYear] = useState(currentDate.getFullYear());
+
+  const [attendanceData, setAttendanceData] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [requestType, setRequestType] = useState("CHECK_IN");
-  const [requestDate, setRequestDate] = useState("");
-  const [requestTime, setRequestTime] = useState("");
-  const [requestNotes, setRequestNotes] = useState("");
-
-  const fetchTodayAttendance = async () => {
-    try {
-      setAttendanceLoading(true);
-
-      await getRequest<AttendanceApiResponse>("attendance/attendance/today");
-    } catch (error: any) {
-    } finally {
-      setAttendanceLoading(false);
-    }
-  };
 
   useEffect(() => {
-    const today = new Date().toLocaleDateString("en-CA", {
-      timeZone: "Asia/Karachi",
-    });
-    setSelectedDate(today);
+    const fetchAttendance = async () => {
+      try {
+        setLoading(true);
 
-    fetchTodayAttendance();
+        const monthIndex = months.indexOf(month) + 1;
 
-    const interval = setInterval(() => {
-      fetchTodayAttendance();
-    }, 30000);
+        const res = await getRequest<{
+          status: number;
+          success: boolean;
+          message: string;
+          data: {
+            attendance: AttendanceAPI[];
+          };
+        }>(`attendance/attendance?month=${monthIndex}&year=${year}`);
 
-    return () => clearInterval(interval);
-  }, []);
+        if (res.data.success) {
+          const rows = (res.data.data.attendance || []).map((item) => ({
+            date: new Date(item.date).toLocaleDateString("en-US", {
+              day: "2-digit",
+              month: "short",
+            }),
 
-  /* ================= CHECK IN ================= */
+            checkIn: item.isLeave
+              ? "-"
+              : item.time?.checkIn
+                ? formatTime(item.time.checkIn)
+                : "-",
 
-  const handleCheckIn = async () => {
-    try {
-      setLoading(true);
-      const payload = {
-        type: "CHECK_IN",
-      };
+            checkOut: item.isLeave
+              ? "-"
+              : item.time?.checkOut
+                ? formatTime(item.time.checkOut)
+                : "-",
 
-      await postRequest<AttendanceApiResponse>(
-        "attendance/attendance",
-        payload,
-      );
+            status: item.isLeave
+              ? item.status?.toLowerCase() === "pending"
+                ? "Applied Leave"
+                : item.status?.toLowerCase() === "approved"
+                  ? "Leave Approved"
+                  : item.status?.toLowerCase() === "rejected"
+                    ? "Leave Rejected"
+                    : "Applied Leave"
+              : item.time?.checkIn && !item.time?.checkOut
+                ? "CheckIn"
+                : item.time?.checkIn && item.time?.checkOut
+                  ? "Present"
+                  : "-",
 
-      await fetchTodayAttendance();
-    } catch (error: any) {
-    } finally {
-      setLoading(false);
-    }
-  };
+            workingHours:
+              item.time?.checkIn && item.time?.checkOut
+                ? (() => {
+                    const start = new Date(item.time.checkIn);
+                    const end = new Date(item.time.checkOut);
 
-  /* ================= CHECK OUT ================= */
+                    if (end < start) {
+                      end.setDate(end.getDate() + 1);
+                    }
 
-  const handleCheckOut = async () => {
-    try {
-      setLoading(true);
+                    const diffMs = end.getTime() - start.getTime();
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const minutes = Math.floor(
+                      (diffMs % (1000 * 60 * 60)) / (1000 * 60),
+                    );
 
-      const payload = {
-        type: "CHECK_OUT",
-        notes: "Checked out from system",
-      };
+                    return `${hours}h ${minutes}m`;
+                  })()
+                : item.time?.checkIn
+                  ? "..."
+                  : "-",
 
-      await postRequest<AttendanceApiResponse>(
-        "attendance/attendance",
-        payload,
-      );
+            notes: item.notes || "-",
+          }));
 
-      await fetchTodayAttendance();
-    } catch (error: any) {
-    } finally {
-      setLoading(false);
-    }
-  };
+          setAttendanceData(rows);
+        } else {
+          setAttendanceData([]);
+        }
+      } catch (error) {
+        setAttendanceData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  /* ================= APPLY LEAVE ================= */
-
-  const handleApplyLeave = async () => {
-    try {
-      if (!selectedDate || !leaveNotes.trim()) return;
-
-      setLoading(true);
-
-      const payload = {
-        date: new Date(selectedDate).toISOString(),
-        notes: leaveNotes,
-      };
-
-      await postRequest<AttendanceApiResponse>(
-        "attendance/attendance/leave",
-        payload,
-      );
-
-      setLeaveNotes("");
-    } catch (error: any) {
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ================= ATTENDANCE REQUEST ================= */
-
-  const handleSubmitAttendanceRequest = async () => {
-    try {
-      if (!requestDate || !requestTime || !requestNotes.trim()) return;
-
-      setLoading(true);
-
-      const dateTime = new Date(`${requestDate}T${requestTime}`);
-
-      const payload = {
-        type: requestType,
-        date: new Date(requestDate).toISOString(),
-        time: dateTime.toISOString(),
-        notes: requestNotes,
-      };
-
-      await postRequest<AttendanceApiResponse>(
-        "attendance/attendance/request",
-        payload,
-      );
-
-      setRequestType("CHECK_IN");
-      setRequestDate("");
-      setRequestTime("");
-      setRequestNotes("");
-    } catch (error: any) {
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchAttendance();
+  }, [month, year]);
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -159,125 +158,109 @@ export default function AttendancePage() {
         <Sidebar />
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <div className="relative h-14 flex items-center px-6 bg-gray-900/80 border-b border-white/10 shadow-md">
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-            Attendance
-          </h1>
+      <div className="flex-1 p-6">
+        <h1 className="text-xl font-semibold mb-6">My Attendance</h1>
 
-          <div className="ml-auto">
-            <button
-              onClick={() =>
-                router.push(
-                  `/dashboard/employe-dashboard/attendence/view-my-attendence`,
-                )
-              }
-              className="px-4 py-2 text-sm rounded-lg bg-[#EE2737] hover:bg-[#d81f2e] transition"
-            >
-              View Attendance
-            </button>
-          </div>
+        <div className="flex items-center mb-6 flex-wrap gap-4">
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg"
+          >
+            {months.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg"
+          >
+            {[2024, 2025, 2026, 2027].map((y) => (
+              <option key={y}>{y}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => {
+              router.push(
+                `/dashboard/employe-dashboard/attendanceStats?month=${month}&year=${year}`,
+              );
+            }}
+            className="ml-auto cursor-pointer bg-[#EE2737] hover:bg-[#d81f2e] px-6 py-2 rounded-lg text-sm font-medium transition"
+          >
+            View Stats
+          </button>
         </div>
 
-        <main className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-xl p-10 rounded-2xl bg-gray-900/70 border border-white/10 shadow-2xl flex flex-col gap-6">
-            <h2 className="text-2xl font-bold text-center text-[#EE2737]">
-              Employee Attendance
-            </h2>
+        <div className="bg-gray-900/70 rounded-xl border border-white/10 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-800 text-gray-300">
+              <tr>
+                <th className="px-5 py-4 text-left">Date</th>
+                <th className="px-5 py-4 text-center">Check In</th>
+                <th className="px-5 py-4 text-center">Check Out</th>
+                <th className="px-5 py-4 text-center">Status</th>
+                <th className="px-5 py-4 text-center">Working Hours</th>
+                <th className="px-5 py-4 text-center">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-4 text-gray-400">
+                    Loading...
+                  </td>
+                </tr>
+              ) : attendanceData.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-4 text-gray-400">
+                    No records found
+                  </td>
+                </tr>
+              ) : (
+                attendanceData.map((row, i) => (
+                  <tr key={i} className="border-t border-white/10">
+                    <td className="px-5 py-4">{row.date}</td>
+                    <td
+                      className={`px-5 py-4 text-center ${
+                        row.checkIn !== "-" &&
+                        (() => {
+                          const [time, modifier] = row.checkIn.split(" ");
+                          let [hours, minutes] = time.split(":").map(Number);
 
-            <button
-              onClick={handleCheckIn}
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 font-semibold disabled:opacity-50"
-            >
-              {loading ? "Processing..." : "Check In"}
-            </button>
+                          if (modifier === "PM" && hours !== 12) hours += 12;
+                          if (modifier === "AM" && hours === 12) hours = 0;
 
-            <button
-              onClick={handleCheckOut}
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-semibold disabled:opacity-50"
-            >
-              {loading ? "Processing..." : "Check Out"}
-            </button>
-
-            <div className="border-t border-white/10 my-4"></div>
-
-            {/* APPLY LEAVE */}
-            <h3 className="text-lg font-semibold text-[#EE2737]">
-              Apply Leave
-            </h3>
-
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none"
-            />
-
-            <textarea
-              placeholder="Enter leave reason"
-              value={leaveNotes}
-              onChange={(e) => setLeaveNotes(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 focus:outline-none resize-none"
-              rows={3}
-            />
-
-            <button
-              onClick={handleApplyLeave}
-              disabled={!selectedDate || loading}
-              className="w-full py-3 rounded-xl bg-[#EE2737] hover:bg-[#d0202c] font-semibold disabled:opacity-50"
-            >
-              {loading ? "Processing..." : "Apply Leave"}
-            </button>
-
-            <div className="border-t border-white/10 my-4"></div>
-
-            {/* REQUEST */}
-            <h3 className="text-lg font-semibold text-[#EE2737]">
-              Attendance Correction Request
-            </h3>
-
-            <select
-              value={requestType}
-              onChange={(e) => setRequestType(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10"
-            >
-              <option value="CHECK_IN">Check In</option>
-              <option value="CHECK_OUT">Check Out</option>
-            </select>
-
-            <input
-              type="date"
-              value={requestDate}
-              onChange={(e) => setRequestDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10"
-            />
-
-            <input
-              type="time"
-              value={requestTime}
-              onChange={(e) => setRequestTime(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/10"
-            />
-
-            <textarea
-              placeholder="Enter reason"
-              value={requestNotes}
-              onChange={(e) => setRequestNotes(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-3 rounded-lg bg-white/10 resize-none"
-            />
-
-            <button
-              onClick={handleSubmitAttendanceRequest}
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-yellow-600 hover:bg-yellow-700 font-semibold disabled:opacity-50"
-            >
-              {loading ? "Processing..." : "Submit Request"}
-            </button>
-          </div>
-        </main>
+                          return hours > 21 || (hours === 21 && minutes > 30);
+                        })()
+                          ? "text-red-400"
+                          : "text-green-400"
+                      }`}
+                    >
+                      {row.checkIn}
+                    </td>
+                    <td className="px-5 py-4 text-center">{row.checkOut}</td>
+                    <td className="px-5 py-4 text-center">{row.status}</td>
+                    <td
+                      className={`text-center ${
+                        row.workingHours !== "-" &&
+                        row.workingHours !== "..." &&
+                        parseInt(row.workingHours) < 8
+                          ? "text-red-400"
+                          : "text-green-400"
+                      }`}
+                    >
+                      {row.workingHours}
+                    </td>
+                    <td className="px-5 py-4 text-center">{row.notes}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
